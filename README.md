@@ -7,42 +7,59 @@
 ## 📁 프로젝트 구조
 
 ```
-perfume_classifier/
-├── config.py       # 모든 하이퍼파라미터 & 경로 설정
-├── dataset.py      # Dataset / Augmentation / DataLoader
-├── model.py        # EfficientNet-B0 + 커스텀 분류 Head
-├── train.py        # 2단계 Fine-tuning 학습 루프
-├── evaluate.py     # Accuracy / Macro F1 / Top-3 / Confusion Matrix
-├── utils.py        # EarlyStopping / 체크포인트 / 시각화 유틸
-├── main.py         # CLI 진입점
-└── requirements.txt
+PERFUME/
+├── data/                          # 전처리된 CSV 데이터
+│   ├── train.csv
+│   ├── val.csv
+│   ├── test.csv
+│   ├── all_cleaned.csv            # 전처리 원본
+│   └── final_perfume_data.csv     # 최종 전처리 결과
+│
+├── perfume_images/                # 향수병 이미지 파일
+│
+├── perfume_classifier/            # 딥러닝 파이프라인
+│   ├── config.py                  # 하이퍼파라미터 & 경로 설정
+│   ├── dataset.py                 # Dataset / Augmentation / DataLoader
+│   ├── model.py                   # EfficientNet-B0 + 분류 Head
+│   ├── train.py                   # 2단계 Fine-tuning 학습 루프
+│   ├── evaluate.py                # 평가 지표 및 시각화
+│   ├── utils.py                   # EarlyStopping / 체크포인트 / 유틸
+│   └── main.py                    # CLI 진입점
+│
+├── train_model.py                 # 기존 학습 코드 (참고용)
+├── main.py                        # 기존 진입점 (참고용)
+├── requirements.txt
+└── README.md
 ```
 
 ---
 
-## 🗂️ 데이터 준비
+## 🗂️ 데이터 구조
 
 CSV 파일은 아래 컬럼 구조를 따릅니다.
 
 | 컬럼 | 설명 |
 |---|---|
-| `image_path` | 이미지 파일 경로 (상대 or 절대) |
-| `label` | Note 계열 (Floral, Woody, Amber/Oriental, Citrus, Sweet, Spicy) |
+| `image_path` | 이미지 파일 경로 |
+| `label` | Note 계열 (Floral / Woody / Amber/Oriental / Citrus / Sweet / Spicy) |
 | `name` | 향수 제품명 |
 | `brand` | 브랜드명 |
 | `notes` | 원본 노트 문자열 |
 | `image_url` | 원본 이미지 URL |
 
-데이터 디렉터리 예시:
-```
-data/
-├── train.csv
-├── val.csv
-├── test.csv
-└── images/
-    ├── 0001.jpg
-    └── ...
-```
+### 클래스별 샘플 수
+
+| 클래스 | Train | Val | Test | 합계 |
+|---|---|---|---|---|
+| Floral | 254 | 32 | 32 | 318 |
+| Woody | 253 | 32 | 31 | 316 |
+| Amber/Oriental | 166 | 21 | 21 | 208 |
+| Citrus | 153 | 19 | 19 | 191 |
+| Sweet | 98 | 12 | 13 | 123 |
+| Spicy | 82 | 10 | 10 | 102 |
+| **합계** | **1,006** | **126** | **126** | **1,258** |
+
+> Stratified Split (80% / 10% / 10%) 적용
 
 ---
 
@@ -62,26 +79,28 @@ pip install -r requirements.txt
 
 ---
 
-## 🔧 설정 (`config.py`)
+## 🔧 설정 (`perfume_classifier/config.py`)
 
-실행 전 `config.py`의 경로를 실제 환경에 맞게 수정하세요.
+CSV를 `data/` 폴더로 이동했으므로 경로가 아래와 같이 설정되어 있습니다.
 
 ```python
 @dataclass
 class PathConfig:
-    train_csv:  str = "data/train.csv"
-    val_csv:    str = "data/val.csv"
-    test_csv:   str = "data/test.csv"
-    image_root: str = "data/images"   # image_path가 절대경로면 "" 로
+    train_csv:  str = os.path.join(BASE_DIR, "..", "data", "train.csv")
+    val_csv:    str = os.path.join(BASE_DIR, "..", "data", "val.csv")
+    test_csv:   str = os.path.join(BASE_DIR, "..", "data", "test.csv")
+    image_root: str = os.path.join(BASE_DIR, "..", "perfume_images")
 ```
+
+> `BASE_DIR`은 `perfume_classifier/` 기준이므로 `..`으로 루트를 참조합니다.
 
 주요 하이퍼파라미터:
 
 | 설정 | 기본값 | 설명 |
 |---|---|---|
 | `backbone` | `efficientnet_b0` | `mobilenet_v3_large` 로 변경 가능 |
-| `stage1_epochs` | 5 | Head만 학습하는 Warm-up 단계 |
-| `stage2_epochs` | 25 | Gradual Unfreeze Fine-tuning 단계 |
+| `stage1_epochs` | 5 | Head만 학습하는 Warm-up |
+| `stage2_epochs` | 25 | Gradual Unfreeze Fine-tuning |
 | `stage1_lr` | 1e-3 | Stage 1 학습률 |
 | `stage2_lr` | 1e-4 | Stage 2 학습률 |
 | `batch_size` | 32 | 배치 크기 |
@@ -93,6 +112,12 @@ class PathConfig:
 
 ## 🚀 실행
 
+모든 명령어는 **`perfume_classifier/`** 디렉터리 안에서 실행합니다.
+
+```bash
+cd perfume_classifier
+```
+
 ### 학습 + 평가 한번에
 ```bash
 python main.py --mode train_eval
@@ -103,7 +128,7 @@ python main.py --mode train_eval
 python main.py --mode train
 ```
 
-### 평가만 (체크포인트 지정)
+### 평가만
 ```bash
 python main.py --mode eval --ckpt checkpoints/stage2_best.pth
 ```
@@ -113,16 +138,13 @@ python main.py --mode eval --ckpt checkpoints/stage2_best.pth
 python main.py --mode eval --split val
 ```
 
-### CLI 옵션 덮어쓰기
+### CLI 옵션으로 설정 덮어쓰기
 ```bash
-# backbone 변경
+# 경량 backbone으로 변경
 python main.py --mode train --backbone mobilenet_v3_large
 
 # 배치 크기 변경
 python main.py --mode train --batch_size 16
-
-# 시드 고정
-python main.py --mode train --seed 123
 ```
 
 ---
@@ -149,15 +171,14 @@ ReLU → BatchNorm1d → Dropout(0.15) → Linear(256 → 6)
 
 ### Stage 1 — Head Only (5 epochs)
 - Backbone 전체 Freeze
-- 분류 Head만 `lr=1e-3`으로 학습
-- Adam optimizer
+- 분류 Head만 `lr=1e-3`으로 학습 (Adam)
 
 ### Stage 2 — Gradual Unfreeze (25 epochs)
-- **Epoch 1**: 마지막 3블록 Unfreeze
-- **Epoch 6**: 마지막 5블록 Unfreeze
-- **Epoch 11**: 전체 Backbone Unfreeze
-- Head `lr=1e-4`, Backbone `lr=1e-5` (차등 적용)
-- AdamW + CosineAnnealingLR + Early Stopping
+- **Epoch 1** : 마지막 3블록 Unfreeze
+- **Epoch 6** : 마지막 5블록 Unfreeze
+- **Epoch 11** : 전체 Backbone Unfreeze
+- Head `lr=1e-4` / Backbone `lr=1e-5` 차등 적용
+- AdamW + CosineAnnealingLR + Early Stopping (patience=7)
 
 ---
 
@@ -175,44 +196,30 @@ ReLU → BatchNorm1d → Dropout(0.15) → Linear(256 → 6)
 | 모델 | 예상 Accuracy | Random Baseline |
 |---|---|---|
 | EfficientNet-B0 | 35 ~ 50% | 16.7% (1/6) |
+| CLIP (ViT-B/32) | 45 ~ 60% | 16.7% (1/6) |
 
 ---
 
 ## 💾 출력 파일
 
-학습 완료 후 아래 파일들이 생성됩니다.
+학습 완료 후 생성되는 파일들입니다.
 
 ```
-checkpoints/
-├── stage1_best.pth           # Stage 1 최적 가중치
-└── stage2_best.pth           # Stage 2 최적 가중치 (최종)
-
-results/
-├── training_curves.png       # 학습 Loss / Accuracy 곡선
-├── test_confusion_matrix.png # Confusion Matrix
-├── test_per_class_accuracy.png
-└── test_metrics.txt          # 수치 결과 요약
-```
-
----
-
-## 🔁 MobileNetV3로 전환 (경량 대안)
-
-GPU 없이 CPU 환경에서 빠른 실험이 필요할 때:
-
-```bash
-python main.py --mode train_eval --backbone mobilenet_v3_large
-```
-
-또는 `config.py`에서 직접 변경:
-```python
-backbone: str = "mobilenet_v3_large"
+perfume_classifier/
+├── checkpoints/
+│   ├── stage1_best.pth              # Stage 1 최적 가중치
+│   └── stage2_best.pth              # Stage 2 최적 가중치 (최종)
+└── results/
+    ├── training_curves.png          # Loss / Accuracy 학습 곡선
+    ├── test_confusion_matrix.png    # Confusion Matrix
+    ├── test_per_class_accuracy.png  # 클래스별 정확도 막대 그래프
+    └── test_metrics.txt             # 수치 결과 요약
 ```
 
 ---
 
 ## 📌 참고
 
-- 데이터셋: [Kaggle — LuckyScent Perfume Dataset](https://www.kaggle.com)
-- 시각-후각 상관관계가 낮은 태스크 특성상 절대적 정확도보다 **Random Baseline 대비 유의미한 개선** 여부가 핵심 목표입니다.
-- CLIP 기반 Zero-shot 실험은 별도 브랜치에서 진행 예정입니다.
+- 데이터셋 출처: Kaggle — LuckyScent Perfume Dataset (총 2,067개 유효 샘플)
+- 시각-후각 상관관계가 낮은 태스크 특성상, **Random Baseline(16.7%) 대비 유의미한 개선**이 핵심 목표입니다.
+- CLIP 기반 Zero-shot / Fine-tuning 실험은 추후 별도로 진행 예정입니다.
