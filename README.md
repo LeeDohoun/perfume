@@ -1,225 +1,267 @@
-# 🌸 향수 이미지 기반 Note 분류 시스템
+# PERFUME
 
-향수병 이미지를 입력받아 향료 노트 계열(Floral, Woody, Citrus 등)을 자동 분류하는 EfficientNet-B0 기반 딥러닝 파이프라인입니다.
+향수 상품 이미지를 입력으로 받아 향수의 note 계열을 분류하는 프로젝트입니다. 현재 저장소 기준 파이프라인은 `data/All`에 있는 CSV를 읽어서 `perfume_classifier`에서 이미지 기반 분류를 학습하고 평가하는 구조입니다.
 
----
+## Current Pipeline
 
-## 📁 프로젝트 구조
+1. 원본 메타데이터는 `data/raw/final_perfume_data.csv`, `data/raw/all_cleaned.csv`에 있습니다.
+2. 현재 학습/평가에 쓰는 분할 데이터는 `data/All/train.csv`, `data/All/val.csv`, `data/All/test.csv`입니다.
+3. `perfume_classifier/config.py`는 위 `data/All` CSV를 읽도록 설정되어 있습니다.
+4. `perfume_classifier`는 현재 `image_path`와 `label`만 사용해서 note 분류를 수행합니다.
+5. 학습 결과는 `checkpoints/`, 평가 결과는 `results/`에 저장됩니다.
 
-```
-PERFUME/
-├── data/                          # 전처리된 CSV 데이터
-│   ├── train.csv
-│   ├── val.csv
-│   ├── test.csv
-│   ├── all_cleaned.csv            # 전처리 원본
-│   └── final_perfume_data.csv     # 최종 전처리 결과
-│
-├── perfume_images/                # 향수병 이미지 파일
-│
-├── perfume_classifier/            # 딥러닝 파이프라인
-│   ├── config.py                  # 하이퍼파라미터 & 경로 설정
-│   ├── dataset.py                 # Dataset / Augmentation / DataLoader
-│   ├── model.py                   # EfficientNet-B0 + 분류 Head
-│   ├── train.py                   # 2단계 Fine-tuning 학습 루프
-│   ├── evaluate.py                # 평가 지표 및 시각화
-│   ├── utils.py                   # EarlyStopping / 체크포인트 / 유틸
-│   └── main.py                    # CLI 진입점
-│
-├── train_model.py                 # 기존 학습 코드 (참고용)
-├── main.py                        # 기존 진입점 (참고용)
-├── requirements.txt
+중요:
+`data/All` CSV에는 `brand` 컬럼이 들어 있지만, 현재 모델은 brand를 입력으로 사용하지 않습니다.
+
+## Project Structure
+
+```text
+perfume/
+├── checkpoints/
+│   ├── stage1_best.pth
+│   └── stage2_best.pth
+├── data/
+│   ├── All/
+│   │   ├── train.csv
+│   │   ├── val.csv
+│   │   └── test.csv
+│   ├── brand/
+│   ├── note/
+│   │   ├── train.csv
+│   │   ├── val.csv
+│   │   └── test.csv
+│   └── raw/
+│       ├── all_cleaned.csv
+│       └── final_perfume_data.csv
+├── perfume_classifier/
+│   ├── config.py
+│   ├── dataset.py
+│   ├── evaluate.py
+│   ├── main.py
+│   ├── model.py
+│   ├── requirements.txt
+│   ├── train.py
+│   └── utils.py
+├── perfume_images/
+├── results/
 └── README.md
 ```
 
----
+## Data Format
 
-## 🗂️ 데이터 구조
+현재 `data/All/*.csv`는 아래 컬럼을 가집니다.
 
-CSV 파일은 아래 컬럼 구조를 따릅니다.
-
-| 컬럼 | 설명 |
+| column | description |
 |---|---|
-| `image_path` | 이미지 파일 경로 |
-| `label` | Note 계열 (Floral / Woody / Amber/Oriental / Citrus / Sweet / Spicy) |
-| `name` | 향수 제품명 |
+| `image_path` | 향수 이미지 경로 |
+| `label` | note 라벨 |
+| `name` | 제품명 |
 | `brand` | 브랜드명 |
-| `notes` | 원본 노트 문자열 |
+| `notes` | 원본 note 문자열 |
 | `image_url` | 원본 이미지 URL |
 
-### 클래스별 샘플 수
+예시:
 
-| 클래스 | Train | Val | Test | 합계 |
-|---|---|---|---|---|
-| Floral | 254 | 32 | 32 | 318 |
-| Woody | 253 | 32 | 31 | 316 |
-| Amber/Oriental | 166 | 21 | 21 | 208 |
-| Citrus | 153 | 19 | 19 | 191 |
-| Sweet | 98 | 12 | 13 | 123 |
-| Spicy | 82 | 10 | 10 | 102 |
-| **합계** | **1,006** | **126** | **126** | **1,258** |
+```csv
+image_path,label,name,brand,notes,image_url
+perfume_images\01577_Kyoto_Eau_de_Toilette.jpg,Woody,Kyoto Eau de Toilette,Comme des Garcons: Incense,"incense, cypress oil, coffee, teak wood, vetiver, patchouli, amber, everlasting flower, Virginian cedar",https://...
+```
 
-> Stratified Split (80% / 10% / 10%) 적용
+## Current Split Sizes
 
----
+현재 `data/All` 기준 샘플 수는 아래와 같습니다.
 
-## ⚙️ 설치
+| split | rows |
+|---|---:|
+| train | 1653 |
+| val | 207 |
+| test | 207 |
+
+`data/All`에는 아래 7개 라벨이 들어 있습니다.
+
+- `Floral`
+- `Woody`
+- `Amber_Oriental`
+- `Citrus`
+- `Sweet`
+- `Spicy`
+- `Fresh`
+
+중요:
+현재 모델 설정 `perfume_classifier/config.py`의 `note_classes`에는 `Fresh`가 포함되어 있지 않습니다. 그래서 `dataset.py`에서 `Fresh` 샘플은 자동으로 제거됩니다.
+
+실제로 현재 모델이 학습/평가에 쓰는 유효 샘플 수:
+
+| split | usable rows |
+|---|---:|
+| train | 1617 |
+| val | 202 |
+| test | 203 |
+
+## Install
+
+루트가 아니라 `perfume_classifier/requirements.txt`를 사용합니다.
 
 ```bash
-pip install -r requirements.txt
+pip install -r perfume_classifier/requirements.txt
 ```
 
-| 주요 패키지 | 버전 |
-|---|---|
-| torch | >= 2.0.0 |
-| torchvision | >= 0.15.0 |
-| scikit-learn | >= 1.2.0 |
-| pandas | >= 1.5.0 |
-| seaborn | >= 0.12.0 |
+주요 패키지:
 
----
+- `torch`
+- `torchvision`
+- `numpy`
+- `pandas`
+- `Pillow`
+- `scikit-learn`
+- `matplotlib`
+- `seaborn`
 
-## 🔧 설정 (`perfume_classifier/config.py`)
+## Current Config
 
-CSV를 `data/` 폴더로 이동했으므로 경로가 아래와 같이 설정되어 있습니다.
+현재 기본 설정의 핵심은 아래와 같습니다.
+
+- 데이터 경로: `data/All/train.csv`, `data/All/val.csv`, `data/All/test.csv`
+- 이미지 루트: 저장소 루트
+- backbone 기본값: `efficientnet_b0`
+- batch size: `32`
+- AMP: `False`
+- weighted sampler: `True`
+
+현재 경로 설정:
 
 ```python
-@dataclass
 class PathConfig:
-    train_csv:  str = os.path.join(BASE_DIR, "..", "data", "train.csv")
-    val_csv:    str = os.path.join(BASE_DIR, "..", "data", "val.csv")
-    test_csv:   str = os.path.join(BASE_DIR, "..", "data", "test.csv")
-    image_root: str = os.path.join(BASE_DIR, "..", "perfume_images")
+    train_csv = os.path.join(BASE_DIR, "..", "data", "All", "train.csv")
+    val_csv   = os.path.join(BASE_DIR, "..", "data", "All", "val.csv")
+    test_csv  = os.path.join(BASE_DIR, "..", "data", "All", "test.csv")
 ```
 
-> `BASE_DIR`은 `perfume_classifier/` 기준이므로 `..`으로 루트를 참조합니다.
+## How To Run
 
-주요 하이퍼파라미터:
-
-| 설정 | 기본값 | 설명 |
-|---|---|---|
-| `backbone` | `efficientnet_b0` | `mobilenet_v3_large` 로 변경 가능 |
-| `stage1_epochs` | 5 | Head만 학습하는 Warm-up |
-| `stage2_epochs` | 25 | Gradual Unfreeze Fine-tuning |
-| `stage1_lr` | 1e-3 | Stage 1 학습률 |
-| `stage2_lr` | 1e-4 | Stage 2 학습률 |
-| `batch_size` | 32 | 배치 크기 |
-| `patience` | 7 | Early Stopping 허용 epoch 수 |
-| `use_weighted_sampler` | True | 클래스 불균형 보정 |
-| `use_amp` | True | Mixed Precision (GPU 권장) |
-
----
-
-## 🚀 실행
-
-모든 명령어는 **`perfume_classifier/`** 디렉터리 안에서 실행합니다.
+가장 안전한 방법은 `perfume_classifier` 폴더로 들어가서 실행하는 것입니다.
 
 ```bash
 cd perfume_classifier
 ```
 
-### 학습 + 평가 한번에
-```bash
-python main.py --mode train_eval
-```
+학습:
 
-### 학습만
 ```bash
 python main.py --mode train
 ```
 
-### 평가만
+평가:
+
 ```bash
-python main.py --mode eval --ckpt checkpoints/stage2_best.pth
+python main.py --mode eval
 ```
 
-### 검증셋 평가
+검증셋 평가:
+
 ```bash
 python main.py --mode eval --split val
 ```
 
-### CLI 옵션으로 설정 덮어쓰기
+학습 후 바로 평가:
+
 ```bash
-# 경량 backbone으로 변경
+python main.py --mode train_eval
+```
+
+옵션 예시:
+
+```bash
 python main.py --mode train --backbone mobilenet_v3_large
-
-# 배치 크기 변경
 python main.py --mode train --batch_size 16
+python main.py --mode train --seed 123
 ```
 
----
+## Model
 
-## 🧠 모델 아키텍처
+현재 모델은 이미지 기반 단일 입력 분류기입니다.
 
-```
-입력 이미지 (3 × 224 × 224)
-        ↓
-EfficientNet-B0 Backbone (features)
-        ↓
-AdaptiveAvgPool2d → Flatten
-        ↓
-BatchNorm1d → Dropout(0.3) → Linear(1280 → 256)
-        ↓
-ReLU → BatchNorm1d → Dropout(0.15) → Linear(256 → 6)
-        ↓
-출력 (6개 클래스 logit)
-```
+- backbone: `EfficientNet-B0` 또는 `MobileNetV3-Large`
+- pooling: `AdaptiveAvgPool2d`
+- classifier head:
+  - `BatchNorm1d`
+  - `Dropout`
+  - `Linear(1280 -> 256)`
+  - `ReLU`
+  - `BatchNorm1d`
+  - `Dropout`
+  - `Linear(256 -> num_classes)`
 
----
+현재는 `brand`, `name`, `notes` 컬럼을 입력으로 쓰지 않고, CSV 안에 보관만 하고 있습니다.
 
-## 📈 2단계 학습 전략
+## Training Strategy
 
-### Stage 1 — Head Only (5 epochs)
-- Backbone 전체 Freeze
-- 분류 Head만 `lr=1e-3`으로 학습 (Adam)
+현재 학습은 2단계입니다.
 
-### Stage 2 — Gradual Unfreeze (25 epochs)
-- **Epoch 1** : 마지막 3블록 Unfreeze
-- **Epoch 6** : 마지막 5블록 Unfreeze
-- **Epoch 11** : 전체 Backbone Unfreeze
-- Head `lr=1e-4` / Backbone `lr=1e-5` 차등 적용
-- AdamW + CosineAnnealingLR + Early Stopping (patience=7)
+### Stage 1
 
----
+- backbone freeze
+- head만 학습
+- optimizer: `Adam`
 
-## 📊 평가 척도
+### Stage 2
 
-| 지표 | 설명 |
-|---|---|
-| **Accuracy** | 전체 정분류율 |
-| **Macro F1-Score** | 클래스 불균형 보정 F1 |
-| **Top-3 Accuracy** | 상위 3개 예측 안에 정답 포함 비율 |
-| **Confusion Matrix** | 클래스 간 오분류 패턴 시각화 |
+- 처음에는 backbone 마지막 3개 block만 unfreeze
+- 이후 일정 epoch에서 추가 unfreeze
+- optimizer: `AdamW`
+- scheduler: `CosineAnnealingLR`
+- early stopping 사용
 
-### 예상 성능 범위
+현재 코드상 stage2 unfreeze 스케줄:
 
-| 모델 | 예상 Accuracy | Random Baseline |
-|---|---|---|
-| EfficientNet-B0 | 35 ~ 50% | 16.7% (1/6) |
-| CLIP (ViT-B/32) | 45 ~ 60% | 16.7% (1/6) |
+- epoch 1: 마지막 3개 block
+- epoch 6: 마지막 5개 block
+- epoch 11: 마지막 9개 block
 
----
+## Known Caveats
 
-## 💾 출력 파일
+현재 파이프라인에서 주의할 점:
 
-학습 완료 후 생성되는 파일들입니다.
+- `data/All`에는 `Fresh` 라벨이 있지만, 현재 모델은 6클래스만 사용합니다.
+- `brand` 컬럼이 있어도 현재 모델 입력에는 연결되어 있지 않습니다.
+- stage2에서 추가 unfreeze를 할 때 optimizer를 다시 만들지 않기 때문에, 특정 실행에서는 epoch 11 부근에서 `NaN`이 발생할 수 있습니다.
+- 현재 결과를 보면 이미지 만으로 note를 분류하는 난도가 높아서 성능이 낮습니다.
 
-```
-perfume_classifier/
-├── checkpoints/
-│   ├── stage1_best.pth              # Stage 1 최적 가중치
-│   └── stage2_best.pth              # Stage 2 최적 가중치 (최종)
-└── results/
-    ├── training_curves.png          # Loss / Accuracy 학습 곡선
-    ├── test_confusion_matrix.png    # Confusion Matrix
-    ├── test_per_class_accuracy.png  # 클래스별 정확도 막대 그래프
-    └── test_metrics.txt             # 수치 결과 요약
+## Evaluation Outputs
+
+평가 시 아래 파일들이 생성됩니다.
+
+```text
+results/
+├── training_curves.png
+├── test_confusion_matrix.png
+├── test_metrics.txt
+└── test_per_class_accuracy.png
 ```
 
----
+현재 `results/test_metrics.txt` 기준 최신 성능:
 
-## 📌 참고
+- Accuracy: `0.1823`
+- Macro F1: `0.1601`
+- Top-3 Accuracy: `0.6256`
+- Random Baseline: `0.1667`
 
-- 데이터셋 출처: Kaggle — LuckyScent Perfume Dataset (총 2,067개 유효 샘플)
-- 시각-후각 상관관계가 낮은 태스크 특성상, **Random Baseline(16.7%) 대비 유의미한 개선**이 핵심 목표입니다.
-- CLIP 기반 Zero-shot / Fine-tuning 실험은 추후 별도로 진행 예정입니다.
+즉, 현재 모델은 랜덤보다는 약간 높지만 아직 실용적인 수준은 아닙니다.
+
+## Current Interpretation
+
+현재 파이프라인의 해석은 아래에 가깝습니다.
+
+- 병 이미지 자체에서 얻을 수 있는 정보가 note 라벨과 직접적으로 강하게 연결되지 않습니다.
+- 흰 배경 상품 이미지 특성상 제품 모양, 라벨 디자인, 브랜드 스타일에 더 끌릴 가능성이 있습니다.
+- `brand`나 텍스트 메타데이터를 함께 쓰는 멀티모달/멀티입력 방향이 다음 실험 후보입니다.
+
+## Next Ideas
+
+다음 단계로 고려할 만한 방향:
+
+- `Fresh` 클래스를 실제 학습 클래스에 포함하기
+- `image + brand` 입력으로 확장하기
+- `image + brand + notes text` 조합 실험하기
+- stage2 unfreeze 스케줄 단순화하기
+- `val loss` 대신 `macro F1` 기준 체크포인트 저장 실험하기

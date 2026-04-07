@@ -18,9 +18,9 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 @dataclass
 class PathConfig:
-    train_csv:  str = os.path.join(BASE_DIR, "..", "data","note", "train.csv")
-    val_csv:    str = os.path.join(BASE_DIR, "..", "data","note", "val.csv")
-    test_csv:   str = os.path.join(BASE_DIR, "..", "data","note", "test.csv")
+    train_csv:  str = os.path.join(BASE_DIR, "..", "data","All", "train.csv")
+    val_csv:    str = os.path.join(BASE_DIR, "..", "data","All", "val.csv")
+    test_csv:   str = os.path.join(BASE_DIR, "..", "data","All", "test.csv")
 
     # 이미지 루트 디렉터리
     # image_path 컬럼이 절대경로라면 "" 로 두세요
@@ -98,7 +98,7 @@ class TrainConfig:
     seed: int = 42
 
     # Mixed Precision (GPU 환경 권장)
-    use_amp: bool = True
+    use_amp: bool = False
 
 
 # ──────────────────────────────────────────────
