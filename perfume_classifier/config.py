@@ -18,14 +18,13 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 @dataclass
 class PathConfig:
-    train_csv:  str = os.path.join(BASE_DIR, "..", "data", "train.csv")
-    val_csv:    str = os.path.join(BASE_DIR, "..", "data", "val.csv")
-    test_csv:   str = os.path.join(BASE_DIR, "..", "data", "test.csv")
-    image_root: str = os.path.join(BASE_DIR, "..", "perfume_images")
+    train_csv:  str = os.path.join(BASE_DIR, "..", "data","note", "train.csv")
+    val_csv:    str = os.path.join(BASE_DIR, "..", "data","note", "val.csv")
+    test_csv:   str = os.path.join(BASE_DIR, "..", "data","note", "test.csv")
 
     # 이미지 루트 디렉터리
     # image_path 컬럼이 절대경로라면 "" 로 두세요
-    image_root: str = os.path.join(BASE_DIR, "..", "data", "images")
+    image_root: str = os.path.join(BASE_DIR, "..")
 
     # 체크포인트 / 로그 / 결과 저장 디렉터리
     checkpoint_dir: str = os.path.join(BASE_DIR, "..", "checkpoints")
@@ -40,7 +39,7 @@ class PathConfig:
 class ClassConfig:
     # Note 분류 클래스 (6개)
     note_classes: List[str] = field(default_factory=lambda: [
-        "Floral", "Woody", "Amber/Oriental", "Citrus", "Sweet", "Spicy"
+        "Floral", "Woody", "Amber_Oriental", "Citrus", "Sweet", "Spicy"
     ])
 
     # Brand 분류 태스크를 추가하려면 True로 변경
