@@ -22,6 +22,13 @@ import torch
 from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 import torchvision.transforms as T
 
+try:
+    import albumentations as A
+    from albumentations.pytorch import ToTensorV2
+    _ALBU_AVAILABLE = True
+except ImportError:
+    _ALBU_AVAILABLE = False
+
 from config import get_config
 
 cfg = get_config()
@@ -31,17 +38,72 @@ cfg = get_config()
 # Transform
 # ──────────────────────────────────────────────
 
-def get_transforms(split: str) -> T.Compose:
+class _AlbuWrapper:
+    """albumentations Compose를 torchvision 스타일 callable로 래핑합니다.
+    PIL Image를 입력받아 torch.Tensor를 반환합니다."""
+
+    def __init__(self, transform: "A.Compose"):
+        self.transform = transform
+
+    def __call__(self, image) -> torch.Tensor:
+        img_np = np.array(image)
+        return self.transform(image=img_np)["image"]
+
+
+def get_transforms(split: str):
     """
     split: 'train' | 'val' | 'test'
+
+    Returns
+    -------
+    callable — torchvision T.Compose 또는 _AlbuWrapper
     """
     aug = cfg.aug
     mean, std = aug.mean, aug.std
     size = cfg.model.image_size
 
-    if split == "train":
+    if split == "train" and aug.use_albumentations:
+        if not _ALBU_AVAILABLE:
+            raise ImportError(
+                "use_albumentations=True이지만 albumentations가 없습니다.\n"
+                "  pip install albumentations"
+            )
+        transform = A.Compose([
+            A.Resize(size + 32, size + 32),
+            A.RandomCrop(size, size),
+            A.HorizontalFlip(p=aug.random_horizontal_flip),
+            # ShiftScaleRotate = Rotate + 약간의 스케일·이동 변화
+            A.ShiftScaleRotate(
+                shift_limit=0.05, scale_limit=0.1,
+                rotate_limit=aug.random_rotation, p=0.5,
+            ),
+            A.ColorJitter(
+                brightness=aug.color_jitter["brightness"],
+                contrast=aug.color_jitter["contrast"],
+                saturation=aug.color_jitter["saturation"],
+                hue=aug.color_jitter["hue"],
+                p=0.8,
+            ),
+            # 향수병 라벨·유리 질감 강조
+            A.CLAHE(clip_limit=2.0, tile_grid_size=(8, 8), p=0.3),
+            # 촬영 블러 시뮬레이션
+            A.GaussianBlur(blur_limit=(3, 7), p=0.2),
+            # 랜덤 패치 드롭 (RandomErasing 강화판)
+            A.CoarseDropout(
+                max_holes=8, max_height=size // 8, max_width=size // 8,
+                min_holes=1, min_height=size // 16, min_width=size // 16,
+                fill_value=0, p=0.3,
+            ),
+            # 렌즈 왜곡 시뮬레이션
+            A.GridDistortion(num_steps=5, distort_limit=0.2, p=0.2),
+            A.Normalize(mean=mean, std=std),
+            ToTensorV2(),
+        ])
+        return _AlbuWrapper(transform)
+
+    elif split == "train":  # albumentations 미설치 시 torchvision fallback
         return T.Compose([
-            T.Resize((size + 32, size + 32)),          # 여유 있게 resize 후 crop
+            T.Resize((size + 32, size + 32)),
             T.RandomCrop(size),
             T.RandomHorizontalFlip(p=aug.random_horizontal_flip),
             T.RandomRotation(degrees=aug.random_rotation),
@@ -50,6 +112,7 @@ def get_transforms(split: str) -> T.Compose:
             T.Normalize(mean=mean, std=std),
             T.RandomErasing(p=aug.random_erasing, scale=(0.02, 0.2)),
         ])
+
     else:  # val / test
         return T.Compose([
             T.Resize((size, size)),
@@ -94,7 +157,7 @@ class PerfumeDataset(Dataset):
         valid_mask = self.df["label"].isin(self.class_to_idx)
         dropped = (~valid_mask).sum()
         if dropped > 0:
-            print(f"[Dataset:{split}] '{csv_path}' — 알 수 없는 label {dropped}개 제거됨")
+            print(f"[Dataset:{split}] '{csv_path}' - 알 수 없는 label {dropped}개 제거됨")
         self.df = self.df[valid_mask].reset_index(drop=True)
 
         self.labels = self.df["label"].map(self.class_to_idx).values

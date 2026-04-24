@@ -52,13 +52,13 @@ class ClassConfig:
 @dataclass
 class ModelConfig:
     # 사용할 백본: "efficientnet_b0" | "mobilenet_v3_large"
-    backbone: str = "efficientnet_b0"
+    backbone: str = "mobilenet_v3_large"
 
     # ImageNet pretrained 가중치 사용 여부
     pretrained: bool = True
 
     # 분류 Head Dropout
-    dropout: float = 0.3
+    dropout: float = 0.5
 
     # 입력 이미지 크기
     image_size: int = 224
@@ -80,8 +80,8 @@ class TrainConfig:
     # 공통
     batch_size:      int   = 32
     num_workers:     int   = 4
-    weight_decay:    float = 1e-4
-    label_smoothing: float = 0.1   # CrossEntropyLoss label smoothing
+    weight_decay:    float = 5e-4
+    label_smoothing: float = 0.05   # CrossEntropyLoss label smoothing
 
     # CosineAnnealingLR (stage2 기준)
     t_max:   int   = 25
@@ -93,6 +93,10 @@ class TrainConfig:
 
     # 클래스 불균형 보정 WeightedRandomSampler 사용 여부
     use_weighted_sampler: bool = True
+
+    # CutMix: 배치 단위 적용 확률 (0.0 = 비활성화)
+    cutmix_prob:  float = 0.5
+    cutmix_alpha: float = 1.0   # Beta 분포 파라미터
 
     # 재현성 시드
     seed: int = 42
@@ -115,6 +119,9 @@ class AugConfig:
     })
     random_rotation: int   = 15
     random_erasing:  float = 0.2   # RandomErasing probability
+
+    # albumentations 강화 augmentation 사용 여부 (pip install albumentations 필요)
+    use_albumentations: bool = True
 
     # ImageNet Normalize 값
     mean: List[float] = field(default_factory=lambda: [0.485, 0.456, 0.406])

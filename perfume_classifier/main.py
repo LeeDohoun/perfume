@@ -36,8 +36,8 @@ def parse_args():
         "--mode",
         type=str,
         default="train_eval",
-        choices=["train", "eval", "train_eval"],
-        help="실행 모드 (기본값: train_eval)",
+        choices=["augment", "train", "eval", "train_eval"],
+        help="실행 모드 (기본값: train_eval) | augment: 오프라인 증강 후 종료",
     )
     parser.add_argument(
         "--split",
@@ -90,7 +90,7 @@ def apply_cli_overrides(args):
 
 def print_config_summary():
     print("\n" + "=" * 55)
-    print("  향수 Note 분류 시스템 — EfficientNet-B0")
+    print("  향수 Note 분류 시스템 - EfficientNet-B0")
     print("=" * 55)
     print(f"  Backbone    : {cfg.model.backbone}")
     print(f"  Image size  : {cfg.model.image_size}x{cfg.model.image_size}")
@@ -119,6 +119,11 @@ def main():
     apply_cli_overrides(args)
     print_config_summary()
     ensure_directories()
+
+    if args.mode == "augment":
+        from augment_offline import run_offline_augmentation
+        run_offline_augmentation()
+        return
 
     if args.mode in ("train", "train_eval"):
         from train import run_training

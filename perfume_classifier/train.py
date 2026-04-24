@@ -20,6 +20,7 @@ Stage 2 (stage2_epochs)
 import os
 from typing import Dict, Tuple
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -35,6 +36,42 @@ from utils import (
 )
 
 cfg = get_config()
+
+
+# ──────────────────────────────────────────────
+# CutMix 헬퍼
+# ──────────────────────────────────────────────
+
+def _cutmix_batch(
+    images: torch.Tensor,
+    labels: torch.Tensor,
+    alpha: float = 1.0,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, float]:
+    """
+    배치 전체에 CutMix를 적용합니다.
+
+    Returns
+    -------
+    mixed_images, labels_a, labels_b, lam
+      loss = lam * CE(logits, labels_a) + (1-lam) * CE(logits, labels_b)
+    """
+    lam = float(np.random.beta(alpha, alpha))
+    B, _, H, W = images.shape
+    rand_idx = torch.randperm(B, device=images.device)
+
+    cut_rat = (1.0 - lam) ** 0.5
+    cut_w = int(W * cut_rat)
+    cut_h = int(H * cut_rat)
+    cx = np.random.randint(W)
+    cy = np.random.randint(H)
+    x1, x2 = max(cx - cut_w // 2, 0), min(cx + cut_w // 2, W)
+    y1, y2 = max(cy - cut_h // 2, 0), min(cy + cut_h // 2, H)
+
+    images = images.clone()
+    images[:, :, y1:y2, x1:x2] = images[rand_idx, :, y1:y2, x1:x2]
+    # 실제 잘린 비율로 lam 보정
+    lam = 1.0 - (x2 - x1) * (y2 - y1) / (W * H)
+    return images, labels, labels[rand_idx], lam
 
 
 # ──────────────────────────────────────────────
@@ -58,14 +95,23 @@ def train_one_epoch(
     model.train()
     loss_meter = AverageMeter("loss")
     correct = total = 0
+    tc = cfg.train
 
     for images, labels in loader:
         images, labels = images.to(device), labels.to(device)
         optimizer.zero_grad()
 
+        # CutMix: 설정된 확률로 배치에 적용
+        use_cutmix = tc.cutmix_prob > 0 and np.random.random() < tc.cutmix_prob
+        if use_cutmix:
+            images, labels_a, labels_b, lam = _cutmix_batch(images, labels, tc.cutmix_alpha)
+
         with autocast(enabled=use_amp):
             logits = model(images)
-            loss   = criterion(logits, labels)
+            if use_cutmix:
+                loss = lam * criterion(logits, labels_a) + (1.0 - lam) * criterion(logits, labels_b)
+            else:
+                loss = criterion(logits, labels)
 
         scaler.scale(loss).backward()
         scaler.unscale_(optimizer)
@@ -75,7 +121,8 @@ def train_one_epoch(
 
         loss_meter.update(loss.item(), n=images.size(0))
         preds    = logits.argmax(dim=1)
-        correct += (preds == labels).sum().item()
+        ref      = labels_a if use_cutmix else labels
+        correct += (preds == ref).sum().item()
         total   += labels.size(0)
 
     return loss_meter.avg, correct / total
