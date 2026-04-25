@@ -15,6 +15,27 @@
 
 ## 모델 비교
 
+### 0. TF-IDF + LogisticRegression ✅ Note 정확도 개선안
+
+| 항목 | 내용 |
+|------|------|
+| 입력 | `name + brand + description` |
+| 출력 | Note 6클래스 |
+| 특징 | 병 이미지에서 보이지 않는 향 정보를 제품 설명 텍스트로 보완 |
+
+**장점**
+- `notes` 컬럼을 쓰지 않아 라벨 직접 누수를 피함
+- 현재 데이터에서 Note 목표 정확도에 도달
+- 학습이 빠르고 결과 재현이 쉬움
+
+**단점**
+- 이미지 단독 분류 모델은 아님
+- 제품 설명이 없는 데이터에는 적용하기 어려움
+
+```bash
+python train_note_text.py
+```
+
 ### 1. EfficientNet-B0 ✅ 최우선 추천
 
 | 항목 | 내용 |
@@ -121,13 +142,21 @@ text_prompts = clip.tokenize([
 ### Note 계열 분류 (6클래스, 1,006개)
 
 ```
-1순위: CLIP (ViT-B/32)
-  → 텍스트 의미 활용 가능, 소규모 데이터에 강함
-  → "a citrus perfume" 등 프롬프트 설계가 성능 좌우
+1순위: TF-IDF + LogisticRegression
+  → name + brand + description 사용
+  → notes 컬럼은 사용하지 않음
+  → 현재 Test Accuracy: 59.52%
+  → 목표 Test Accuracy: 45 ~ 60%
 
-2순위: EfficientNet-B0
+2순위: CLIP (ViT-B/32)
+  → 텍스트 의미 활용 가능, 소규모 데이터에 강함
+  → zero-shot은 기준선으로 확인하고, 목표 성능은 frozen CLIP + linear probe 방식으로 접근
+  → 목표 Test Accuracy: 45 ~ 60%
+
+3순위: EfficientNet-B0
   → 구현 단순, 안정적
   → Fine-tuning 방식으로 접근
+  → 목표 Test Accuracy: 35 ~ 50%
 ```
 
 ### Brand 분류 (35클래스, 652개)
@@ -136,6 +165,7 @@ text_prompts = clip.tokenize([
 1순위: EfficientNet-B0
   → 클래스 수가 많고 샘플이 적은 상황에서 파라미터 수 적은 모델이 유리
   → 브랜드별 병 디자인을 학습하는 데 충분한 표현력
+  → 목표 Test Accuracy: 40 ~ 65%
 
 2순위: MobileNetV3-Large
   → GPU 환경이 제한적일 경우
@@ -163,12 +193,34 @@ text_prompts = clip.tokenize([
 
 ---
 
-## 예상 성능
+## 목표 성능
 
 > 향수병 이미지만으로 향 계열/브랜드를 분류하는 태스크 특성상 절대적 수치보다 **학습 가능성 확인**이 목표
 
-| 태스크 | 예상 Test Accuracy | 비고 |
-|--------|--------------------|------|
-| Note 계열 (EfficientNet) | 35 ~ 50% | Random baseline: 16.7% |
-| Note 계열 (CLIP) | 45 ~ 60% | 텍스트 프롬프트 설계 의존 |
-| Brand (EfficientNet) | 40 ~ 65% | Random baseline: 2.9% |
+| 모델 | 태스크 | 목표 Test Accuracy | 비고 |
+|------|--------|--------------------|------|
+| TF-IDF + LogisticRegression | Note 계열 | 45 ~ 60% | 현재 59.52%, notes 미사용 |
+| EfficientNet-B0 | Note 계열 | 35 ~ 50% | Random baseline: 16.7% |
+| CLIP ViT-B/32 | Note 계열 | 45 ~ 60% | frozen CLIP + linear probe 기준 |
+| EfficientNet-B0 | Brand | 40 ~ 65% | Random baseline: 2.9% |
+
+## 실행 명령
+
+```bash
+# EfficientNet-B0 Note
+python train.py --task note
+
+# EfficientNet-B0 Brand
+python train.py --task brand
+
+# CLIP Note linear probe
+python clip_note_eval.py --mode linear_probe --split test
+
+# CLIP Note zero-shot baseline
+python clip_note_eval.py --mode zero_shot --split test
+
+# Note metadata text classifier
+python train_note_text.py
+```
+
+`train.py`와 `clip_note_eval.py`는 평가 후 현재 Test Accuracy가 목표 범위에 들어왔는지 함께 출력한다.

@@ -14,6 +14,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 
 RAW_CSV   = os.path.join("data", "raw", "all_cleaned.csv")
+SOURCE_CSV = os.path.join("data", "raw", "final_perfume_data.csv")
 NOTE_DIR  = os.path.join("data", "note")
 BRAND_DIR = os.path.join("data", "brand")
 
@@ -73,11 +74,34 @@ def notes_to_label(notes: str):
     return winners[0] if len(winners) == 1 else None  # 동점 제거
 
 
+def add_descriptions(df: pd.DataFrame):
+    """원본 CSV의 Description을 image_url 기준으로 정제 데이터에 병합"""
+    source = pd.read_csv(SOURCE_CSV, encoding="latin1")
+    source = source[["Image URL", "Description"]].copy()
+    source = source.rename(columns={
+        "Image URL": "image_url",
+        "Description": "description",
+    })
+    source["image_url"] = source["image_url"].astype(str).str.strip()
+    source["description"] = source["description"].fillna("").astype(str).str.strip()
+
+    df = df.copy()
+    df["image_url"] = df["image_url"].astype(str).str.strip()
+    df = df.merge(source, on="image_url", how="left")
+    df["description"] = df["description"].fillna("")
+    return df
+
+
 def split_and_save(df: pd.DataFrame, out_dir: str):
     """Stratified 80 / 10 / 10 분할 후 data/{task}/ 에 저장"""
     os.makedirs(out_dir, exist_ok=True)
+    df = df.copy()
+    df["image_path"] = df["image_path"].astype(str).str.replace("\\", "/", regex=False)
+    optional_cols = ["name", "brand", "description", "image_url"]
+    save_cols = ["image_path", "label"] + [c for c in optional_cols if c in df.columns]
+
     train_df, temp = train_test_split(
-        df[["image_path", "label"]],
+        df[save_cols],
         test_size=0.2,
         stratify=df["label"],
         random_state=42,
@@ -122,7 +146,7 @@ def prepare_brand(df: pd.DataFrame, min_samples: int = 15):
     print("Task B : Brand 분류")
     print("=" * 50)
 
-    brand_df = df[["image_path", "brand"]].copy()
+    brand_df = df[["image_path", "brand", "name", "description", "image_url"]].copy()
     brand_df = brand_df.rename(columns={"brand": "label"})
     brand_df["label"] = brand_df["label"].str.strip()
     brand_df = brand_df.dropna(subset=["label"])
@@ -140,5 +164,6 @@ def prepare_brand(df: pd.DataFrame, min_samples: int = 15):
 
 if __name__ == "__main__":
     df = pd.read_csv(RAW_CSV)
+    df = add_descriptions(df)
     prepare_note(df)
     prepare_brand(df, min_samples=15)

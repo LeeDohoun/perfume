@@ -17,6 +17,9 @@ import argparse
 import time
 import copy
 
+PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+os.environ.setdefault("TORCH_HOME", os.path.join(PROJECT_ROOT, ".torch_cache"))
+
 import numpy as np
 import pandas as pd
 import torch
@@ -25,6 +28,11 @@ from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 from torchvision import transforms, models
 from PIL import Image
 from sklearn.metrics import classification_report, confusion_matrix
+
+TARGET_ACCURACY = {
+    "note": (0.35, 0.50),
+    "brand": (0.40, 0.65),
+}
 
 
 # ──────────────────────────────────────────────────────────────
@@ -48,7 +56,8 @@ class PerfumeDataset(Dataset):
 
     def __getitem__(self, idx):
         row = self.df.iloc[idx]
-        img = Image.open(row["image_path"]).convert("RGB")
+        image_path = os.path.normpath(str(row["image_path"]).replace("\\", os.sep))
+        img = Image.open(image_path).convert("RGB")
         label = self.label2idx[row["label"]]
 
         if self.transform:
@@ -265,14 +274,31 @@ def test_evaluate(model, loader, device, idx2label):
     print("\n" + "=" * 60)
     print("  Test 결과")
     print("=" * 60)
-    print(classification_report(all_labels, all_preds, target_names=target_names))
+    print(classification_report(all_labels, all_preds, target_names=target_names, zero_division=0))
 
     # Confusion Matrix
     cm = confusion_matrix(all_labels, all_preds)
     print("Confusion Matrix:")
     print(cm)
 
-    return all_preds, all_labels
+    test_acc = float(np.mean(np.array(all_preds) == np.array(all_labels)))
+    print(f"\nTest Accuracy: {test_acc * 100:.2f}%")
+
+    return all_preds, all_labels, test_acc
+
+
+def print_target_status(task, accuracy):
+    """목표 정확도 범위와 현재 결과 비교"""
+    low, high = TARGET_ACCURACY[task]
+    print("\n" + "-" * 60)
+    print(f"  Target Accuracy ({task}, EfficientNet-B0): {low * 100:.0f}% ~ {high * 100:.0f}%")
+    if accuracy < low:
+        print(f"  Result: {accuracy * 100:.2f}%  -> 목표 미달")
+    elif accuracy <= high:
+        print(f"  Result: {accuracy * 100:.2f}%  -> 목표 범위 도달")
+    else:
+        print(f"  Result: {accuracy * 100:.2f}%  -> 목표 상한 초과")
+    print("-" * 60)
 
 
 # ──────────────────────────────────────────────────────────────
@@ -300,7 +326,12 @@ def main():
     os.makedirs(save_dir, exist_ok=True)
 
     # ── Device ──
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
     print(f"\nDevice: {device}")
     if device.type == "cpu":
         print("  [!] CPU mode: GPU not available. Training may be slow.")
@@ -316,6 +347,8 @@ def main():
     print(f"\nTask: {args.task.upper()}")
     print(f"Classes: {num_classes}  ({', '.join(train_ds.label2idx.keys())})")
     print(f"Train: {len(train_ds)} | Val: {len(val_ds)} | Test: {len(test_ds)}")
+    target_low, target_high = TARGET_ACCURACY[args.task]
+    print(f"Target Accuracy (EfficientNet-B0): {target_low * 100:.0f}% ~ {target_high * 100:.0f}%")
 
     # WeightedRandomSampler
     sampler = make_weighted_sampler(train_ds)
@@ -388,7 +421,8 @@ def main():
     # ════════════════════════════════════════════
     # 테스트 평가
     # ════════════════════════════════════════════
-    test_evaluate(model, test_loader, device, train_ds.idx2label)
+    _, _, test_acc = test_evaluate(model, test_loader, device, train_ds.idx2label)
+    print_target_status(args.task, test_acc)
 
     print("\n" + "=" * 60)
     print("  학습 완료!")

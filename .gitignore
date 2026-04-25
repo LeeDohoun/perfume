@@ -8,6 +8,9 @@ venv/
 # 학습된 모델 가중치
 *.pth
 *.pt
+checkpoints/
+.torch_cache/
+.hf_cache/
 
 # Python
 __pycache__/
