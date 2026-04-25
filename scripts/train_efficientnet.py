@@ -2,10 +2,10 @@
 향수 이미지 분류 학습 스크립트
 
 사용법:
-  python train.py --task note      # Note 계열 분류 (6클래스)
-  python train.py --task brand     # Brand 분류 (35클래스)
+  python scripts/train_efficientnet.py --task note      # Note 계열 분류 (6클래스)
+  python scripts/train_efficientnet.py --task brand     # Brand 분류 (35클래스)
 
-학습 전략 (model_recommendation.md 기반):
+학습 전략 (docs/model_recommendation.md 기반):
   - EfficientNet-B0 Transfer Learning
   - 2단계 Fine-tuning: Head만 → 전체 Unfreeze
   - WeightedRandomSampler (클래스 불균형 보정)
@@ -17,7 +17,7 @@ import argparse
 import time
 import copy
 
-PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault("TORCH_HOME", os.path.join(PROJECT_ROOT, ".torch_cache"))
 
 import numpy as np

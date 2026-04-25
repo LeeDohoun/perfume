@@ -2,8 +2,8 @@
 CLIP note classification.
 
 Usage:
-  python clip_note_eval.py --mode zero_shot --split test
-  python clip_note_eval.py --mode linear_probe --split test
+  python scripts/eval_clip_note.py --mode zero_shot --split test
+  python scripts/eval_clip_note.py --mode linear_probe --split test
 
 Target:
   Note classification with CLIP: 45% ~ 60% test accuracy
@@ -20,7 +20,7 @@ from PIL import Image
 from sklearn.linear_model import RidgeClassifier
 from sklearn.metrics import classification_report, confusion_matrix
 
-PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.environ.setdefault("TORCH_HOME", os.path.join(PROJECT_ROOT, ".torch_cache"))
 os.environ.setdefault("HF_HOME", os.path.join(PROJECT_ROOT, ".hf_cache"))
 

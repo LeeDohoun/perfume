@@ -22,10 +22,10 @@
 | Note | 1,006 | 126 | 126 | 6 |
 | Brand | 652 | 81 | 82 | 35 |
 
-데이터는 `prepare.py` 실행 결과인 `data/note/*.csv`, `data/brand/*.csv`를 기준으로 한다.
+데이터는 `scripts/prepare_data.py` 실행 결과인 `data/note/*.csv`, `data/brand/*.csv`를 기준으로 한다.
 
 ```bash
-.venv/bin/python prepare.py
+.venv/bin/python scripts/prepare_data.py
 ```
 
 ## 데이터 처리 및 변형 내역
@@ -109,7 +109,7 @@ EfficientNet-B0 학습에서는 이미지 증강을 적용했다. 단, 증강 �
 ### EfficientNet-B0 Note 학습
 
 ```bash
-.venv/bin/python train.py --task note --batch_size 32
+.venv/bin/python scripts/train_efficientnet.py --task note --batch_size 32
 ```
 
 결과:
@@ -122,7 +122,7 @@ EfficientNet-B0 학습에서는 이미지 증강을 적용했다. 단, 증강 �
 ### EfficientNet-B0 Brand 학습
 
 ```bash
-.venv/bin/python -u train.py --task brand --batch_size 32
+.venv/bin/python -u scripts/train_efficientnet.py --task brand --batch_size 32
 ```
 
 결과:
@@ -135,7 +135,7 @@ EfficientNet-B0 학습에서는 이미지 증강을 적용했다. 단, 증강 �
 ### CLIP Note 평가
 
 ```bash
-.venv/bin/python -u clip_note_eval.py --mode linear_probe --split test --batch_size 64 --device cpu
+.venv/bin/python -u scripts/eval_clip_note.py --mode linear_probe --split test --batch_size 64 --device cpu
 ```
 
 결과:
@@ -147,7 +147,7 @@ EfficientNet-B0 학습에서는 이미지 증강을 적용했다. 단, 증강 �
 ### Note 정확도 개선 모델
 
 ```bash
-.venv/bin/python train_note_text.py
+.venv/bin/python scripts/train_note_text.py
 ```
 
 입력:
@@ -174,9 +174,9 @@ EfficientNet-B0 학습에서는 이미지 증강을 적용했다. 단, 증강 �
 학습을 다시 돌리면 증강, 샘플링, 연산 장치 차이 때문에 수치가 약간 달라질 수 있다. 현재 저장된 EfficientNet-B0 체크포인트를 그대로 평가하려면 아래 명령을 사용한다.
 
 ```bash
-.venv/bin/python eval_checkpoint.py --task note --device cpu
-.venv/bin/python eval_checkpoint.py --task brand --device cpu
-.venv/bin/python eval_note_text.py
+.venv/bin/python scripts/eval_efficientnet.py --task note --device cpu
+.venv/bin/python scripts/eval_efficientnet.py --task brand --device cpu
+.venv/bin/python scripts/eval_note_text.py
 ```
 
 체크포인트는 `.gitignore`에 의해 Git에는 포함되지 않는다. 다른 컴퓨터에서 같은 결과를 보려면 아래 파일도 함께 복사해야 한다.

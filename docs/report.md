@@ -31,7 +31,7 @@
 
 ## 3. 데이터 전처리
 
-전처리는 `prepare.py`에서 수행하였다.
+전처리는 `scripts/prepare_data.py`에서 수행하였다.
 
 ### 3.1 공통 전처리
 
@@ -196,39 +196,39 @@ Note 분류에서 확인된 주요 문제는 다음과 같다.
 전처리:
 
 ```bash
-.venv/bin/python prepare.py
+.venv/bin/python scripts/prepare_data.py
 ```
 
 EfficientNet-B0 Note 학습:
 
 ```bash
-.venv/bin/python train.py --task note --batch_size 32
+.venv/bin/python scripts/train_efficientnet.py --task note --batch_size 32
 ```
 
 EfficientNet-B0 Brand 학습:
 
 ```bash
-.venv/bin/python -u train.py --task brand --batch_size 32
+.venv/bin/python -u scripts/train_efficientnet.py --task brand --batch_size 32
 ```
 
 CLIP Note 평가:
 
 ```bash
-.venv/bin/python -u clip_note_eval.py --mode linear_probe --split test --batch_size 64 --device cpu
+.venv/bin/python -u scripts/eval_clip_note.py --mode linear_probe --split test --batch_size 64 --device cpu
 ```
 
 Note 텍스트 모델 학습:
 
 ```bash
-.venv/bin/python train_note_text.py
+.venv/bin/python scripts/train_note_text.py
 ```
 
 저장된 모델 재평가:
 
 ```bash
-.venv/bin/python eval_checkpoint.py --task note --device cpu
-.venv/bin/python eval_checkpoint.py --task brand --device cpu
-.venv/bin/python eval_note_text.py
+.venv/bin/python scripts/eval_efficientnet.py --task note --device cpu
+.venv/bin/python scripts/eval_efficientnet.py --task brand --device cpu
+.venv/bin/python scripts/eval_note_text.py
 ```
 
 ## 10. 결론

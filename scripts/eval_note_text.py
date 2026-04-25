@@ -2,7 +2,7 @@
 Evaluate the saved Note metadata text classifier.
 
 Usage:
-  python eval_note_text.py
+  python scripts/eval_note_text.py
 """
 import argparse
 import os

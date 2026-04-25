@@ -33,7 +33,7 @@
 - 제품 설명이 없는 데이터에는 적용하기 어려움
 
 ```bash
-python train_note_text.py
+python scripts/train_note_text.py
 ```
 
 ### 1. EfficientNet-B0 ✅ 최우선 추천
@@ -208,19 +208,19 @@ text_prompts = clip.tokenize([
 
 ```bash
 # EfficientNet-B0 Note
-python train.py --task note
+python scripts/train_efficientnet.py --task note
 
 # EfficientNet-B0 Brand
-python train.py --task brand
+python scripts/train_efficientnet.py --task brand
 
 # CLIP Note linear probe
-python clip_note_eval.py --mode linear_probe --split test
+python scripts/eval_clip_note.py --mode linear_probe --split test
 
 # CLIP Note zero-shot baseline
-python clip_note_eval.py --mode zero_shot --split test
+python scripts/eval_clip_note.py --mode zero_shot --split test
 
 # Note metadata text classifier
-python train_note_text.py
+python scripts/train_note_text.py
 ```
 
-`train.py`와 `clip_note_eval.py`는 평가 후 현재 Test Accuracy가 목표 범위에 들어왔는지 함께 출력한다.
+`scripts/train_efficientnet.py`와 `scripts/eval_clip_note.py`는 평가 후 현재 Test Accuracy가 목표 범위에 들어왔는지 함께 출력한다.

@@ -4,7 +4,7 @@
   - note  : 향 계열 분류 (6클래스, 동점 제거, 단어 경계 매칭)
   - brand : 브랜드 분류  (15개+ 샘플 브랜드 → 35개 브랜드)
 
-실행: python prepare.py
+실행: python scripts/prepare_data.py
 출력:
   data/note/train.csv, val.csv, test.csv
   data/brand/train.csv, val.csv, test.csv
@@ -54,7 +54,7 @@ def notes_to_label(notes: str):
     """
     노트를 콤마로 분리 → 각 노트 단위로 카테고리 매칭 → 동점이면 None 반환
 
-    개선점 (기존 main.py 대비):
+    개선점 (기존 collect_images.py 대비):
       1. 전체 문자열 검색 대신 노트별 검색 → 'lemon' 이 'lemongrass' 에 오매칭되는 문제 해결
       2. 동점 시 None 반환 → 불명확한 라벨 제거
     """

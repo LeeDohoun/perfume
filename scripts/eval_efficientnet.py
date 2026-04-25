@@ -2,8 +2,8 @@
 Evaluate a saved EfficientNet-B0 checkpoint.
 
 Usage:
-  python eval_checkpoint.py --task note
-  python eval_checkpoint.py --task brand
+  python scripts/eval_efficientnet.py --task note
+  python scripts/eval_efficientnet.py --task brand
 """
 import argparse
 import os
@@ -11,7 +11,7 @@ import os
 import torch
 from torch.utils.data import DataLoader
 
-from train import (
+from train_efficientnet import (
     PerfumeDataset,
     build_model,
     get_transforms,

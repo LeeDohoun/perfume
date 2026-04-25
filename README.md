@@ -25,12 +25,12 @@
 ## 현재 진행 상황
 
 ```
-[완료] 1단계: 데이터 수집 및 이미지 다운로드   main.py
-[완료] 2단계: 전처리 및 분할                  prepare.py
-[완료] 3단계: 모델 선정                       model_recommendation.md 참고
-[진행] 4단계: EfficientNet-B0 학습            train.py
-[진행] 5단계: CLIP Note 평가                  clip_note_eval.py
-[완료] 6단계: Note 정확도 개선 모델           train_note_text.py
+[완료] 1단계: 데이터 수집 및 이미지 다운로드   scripts/collect_images.py
+[완료] 2단계: 전처리 및 분할                  scripts/prepare_data.py
+[완료] 3단계: 모델 선정                       docs/model_recommendation.md 참고
+[진행] 4단계: EfficientNet-B0 학습            scripts/train_efficientnet.py
+[진행] 5단계: CLIP Note 평가                  scripts/eval_clip_note.py
+[완료] 6단계: Note 정확도 개선 모델           scripts/train_note_text.py
 ```
 
 ---
@@ -52,12 +52,18 @@ perfume/
 │       ├── val.csv                  # 81개
 │       └── test.csv                 # 82개
 ├── perfume_images/                  # 다운로드된 향수병 이미지 (2,067장)
-├── main.py                          # 1단계: 데이터 수집 및 이미지 다운로드
-├── prepare.py                       # 2단계: 전처리 및 태스크별 분할
-├── train.py                         # EfficientNet-B0 학습 및 평가
-├── clip_note_eval.py                # CLIP zero-shot / linear-probe Note 평가
-├── train_note_text.py               # Note 개선용 메타데이터 텍스트 모델
-├── model_recommendation.md          # 모델 추천 및 비교
+├── scripts/
+│   ├── collect_images.py            # 1단계: 데이터 수집 및 이미지 다운로드
+│   ├── prepare_data.py              # 2단계: 전처리 및 태스크별 분할
+│   ├── train_efficientnet.py        # EfficientNet-B0 학습 및 평가
+│   ├── eval_clip_note.py            # CLIP zero-shot / linear-probe Note 평가
+│   ├── train_note_text.py           # Note 개선용 메타데이터 텍스트 모델
+│   ├── eval_efficientnet.py         # 저장된 EfficientNet 체크포인트 평가
+│   └── eval_note_text.py            # 저장된 Note 텍스트 모델 평가
+├── docs/
+│   ├── report.md                    # 제출/발표용 보고서
+│   ├── results.md                   # 실험 결과 및 재현 기록
+│   └── model_recommendation.md      # 모델 추천 및 비교
 ├── requirements.txt
 └── README.md
 ```
@@ -66,13 +72,13 @@ perfume/
 
 ## 데이터 파이프라인
 
-### 1단계 - 데이터 수집 (`main.py`)
+### 1단계 - 데이터 수집 (`scripts/collect_images.py`)
 
 - 출처: LuckyScent 향수 데이터 (`final_perfume_data.csv`)
 - 원본 2,191개 중 이미지 다운로드 성공 **2,067개** 사용
 - 검증: 100×100px 미만 이미지 제거, RGB 변환
 
-### 2단계 - 전처리 (`prepare.py`)
+### 2단계 - 전처리 (`scripts/prepare_data.py`)
 
 **Note 분류 전처리**
 
@@ -113,39 +119,39 @@ perfume/
 pip install -r requirements.txt
 
 # 전처리 실행 (data/ 폴더 내 CSV 생성)
-python prepare.py
+python scripts/prepare_data.py
 
 # EfficientNet-B0: Note 분류
-python train.py --task note
+python scripts/train_efficientnet.py --task note
 
 # EfficientNet-B0: Brand 분류
-python train.py --task brand
+python scripts/train_efficientnet.py --task brand
 
 # CLIP: Note linear-probe 평가 (목표 45~60%)
-python clip_note_eval.py --mode linear_probe --split test
+python scripts/eval_clip_note.py --mode linear_probe --split test
 
 # CLIP: Note zero-shot 기준선 확인
-python clip_note_eval.py --mode zero_shot --split test
+python scripts/eval_clip_note.py --mode zero_shot --split test
 
 # Note 정확도 개선: name + brand + description 텍스트 모델
-python train_note_text.py
+python scripts/train_note_text.py
 
 # 저장된 모델 재평가
-python eval_checkpoint.py --task note --device cpu
-python eval_checkpoint.py --task brand --device cpu
-python eval_note_text.py
+python scripts/eval_efficientnet.py --task note --device cpu
+python scripts/eval_efficientnet.py --task brand --device cpu
+python scripts/eval_note_text.py
 ```
 
-> `main.py` (이미지 다운로드)는 이미 완료된 단계입니다.  
-> `data/raw/all_cleaned.csv` 와 `perfume_images/` 가 존재하면 `prepare.py` 부터 실행하면 됩니다.
+> `scripts/collect_images.py` (이미지 다운로드)는 이미 완료된 단계입니다.  
+> `data/raw/all_cleaned.csv` 와 `perfume_images/` 가 존재하면 `scripts/prepare_data.py` 부터 실행하면 됩니다.
 
 ---
 
 ## 모델 추천
 
-`model_recommendation.md` 참고
+`docs/model_recommendation.md` 참고
 
-현재 실험 결과와 Note 태스크의 문제점은 `RESULTS.md` 참고
+현재 실험 결과와 Note 태스크의 문제점은 `docs/results.md` 참고
 
 | 태스크 | 추천 모델 | 이유 |
 |--------|-----------|------|

@@ -7,7 +7,7 @@ provides (name, brand, description). It deliberately does not use `notes`,
 because `notes` are the source used to create the labels.
 
 Usage:
-  python train_note_text.py
+  python scripts/train_note_text.py
 """
 import argparse
 import os
@@ -32,7 +32,7 @@ def load_split(split):
     if missing:
         raise ValueError(
             f"data/note/{split}.csv is missing {missing}. "
-            "Run `python prepare.py` first."
+            "Run `python scripts/prepare_data.py` first."
         )
 
     text = (

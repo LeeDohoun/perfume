@@ -6,13 +6,14 @@ import pandas as pd
 
 from io import BytesIO
 from PIL import Image
-from sklearn.model_selection import train_test_split
 
 # ----------------------------
 # 1. 설정
 # ----------------------------
-CSV_PATH = "final_perfume_data.csv"   # 파일명 맞게 수정
+CSV_PATH = os.path.join("data", "raw", "final_perfume_data.csv")
+CLEANED_CSV = os.path.join("data", "raw", "all_cleaned.csv")
 SAVE_DIR = "perfume_images"
+os.makedirs(os.path.dirname(CLEANED_CSV), exist_ok=True)
 os.makedirs(SAVE_DIR, exist_ok=True)
 
 # ----------------------------
@@ -154,27 +155,8 @@ clean_df = clean_df[clean_df["label"].isin(valid_labels)].reset_index(drop=True)
 print("\n클래스 정리 후 데이터 수:", len(clean_df))
 print(clean_df["label"].value_counts())
 # ----------------------------
-# 7. 학습/검증/테스트 분할
+# 7. 정제 CSV 저장
 # ----------------------------
-train_df, temp_df = train_test_split(
-    clean_df,
-    test_size=0.2,
-    stratify=clean_df["label"],
-    random_state=42
-)
-
-val_df, test_df = train_test_split(
-    temp_df,
-    test_size=0.5,
-    stratify=temp_df["label"],
-    random_state=42
-)
-
-train_df.to_csv("train.csv", index=False, encoding="utf-8-sig")
-val_df.to_csv("val.csv", index=False, encoding="utf-8-sig")
-test_df.to_csv("test.csv", index=False, encoding="utf-8-sig")
-clean_df.to_csv("all_cleaned.csv", index=False, encoding="utf-8-sig")
-
-print("\ntrain:", len(train_df))
-print("val:", len(val_df))
-print("test:", len(test_df))
+clean_df.to_csv(CLEANED_CSV, index=False, encoding="utf-8-sig")
+print(f"\n정제 CSV 저장: {CLEANED_CSV}")
+print("다음 단계: python scripts/prepare_data.py")
