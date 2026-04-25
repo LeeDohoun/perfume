@@ -18,9 +18,10 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 @dataclass
 class PathConfig:
-    train_csv:  str = os.path.join(BASE_DIR, "..", "data","All", "train.csv")
-    val_csv:    str = os.path.join(BASE_DIR, "..", "data","All", "val.csv")
-    test_csv:   str = os.path.join(BASE_DIR, "..", "data","All", "test.csv")
+    train_csv:     str = os.path.join(BASE_DIR, "..", "data", "All", "train.csv")
+    train_aug_csv: str = os.path.join(BASE_DIR, "..", "data", "All", "train_aug.csv")
+    val_csv:       str = os.path.join(BASE_DIR, "..", "data", "All", "val.csv")
+    test_csv:      str = os.path.join(BASE_DIR, "..", "data", "All", "test.csv")
 
     # 이미지 루트 디렉터리
     # image_path 컬럼이 절대경로라면 "" 로 두세요
@@ -37,9 +38,9 @@ class PathConfig:
 # ──────────────────────────────────────────────
 @dataclass
 class ClassConfig:
-    # Note 분류 클래스 (6개)
+    # Note 분류 클래스 (7개)
     note_classes: List[str] = field(default_factory=lambda: [
-        "Floral", "Woody", "Amber_Oriental", "Citrus", "Sweet", "Spicy"
+        "Floral", "Woody", "Amber_Oriental", "Citrus", "Sweet", "Spicy", "Fresh"
     ])
 
     # Brand 분류 태스크를 추가하려면 True로 변경
@@ -51,8 +52,8 @@ class ClassConfig:
 # ──────────────────────────────────────────────
 @dataclass
 class ModelConfig:
-    # 사용할 백본: "efficientnet_b0" | "mobilenet_v3_large"
-    backbone: str = "mobilenet_v3_large"
+    # 사용할 백본: "efficientnet_v2_s" | "efficientnet_b3" | "efficientnet_b0" | "mobilenet_v3_large"
+    backbone: str = "efficientnet_b0"
 
     # ImageNet pretrained 가중치 사용 여부
     pretrained: bool = True
@@ -71,17 +72,21 @@ class ModelConfig:
 class TrainConfig:
     # ── Stage 1: Head만 학습 (Backbone Freeze) ──
     stage1_epochs: int   = 5
-    stage1_lr:     float = 1e-3
+    stage1_lr:     float = 5e-4
 
     # ── Stage 2: Gradual Unfreeze + Full Fine-tuning ──
     stage2_epochs: int   = 25
-    stage2_lr:     float = 1e-4
+    stage2_lr:     float = 3e-5
 
     # 공통
     batch_size:      int   = 32
     num_workers:     int   = 4
     weight_decay:    float = 5e-4
-    label_smoothing: float = 0.05   # CrossEntropyLoss label smoothing
+    label_smoothing: float = 0.05
+
+    # Focal Loss
+    use_focal_loss: bool  = True
+    focal_gamma:    float = 2.0
 
     # CosineAnnealingLR (stage2 기준)
     t_max:   int   = 25

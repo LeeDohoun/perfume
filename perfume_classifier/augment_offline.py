@@ -43,9 +43,15 @@ cfg = get_config()
 # ──────────────────────────────────────────────
 
 # {클래스명: 원본 1장당 추가할 장수}
+# 목표: 전체 train 5,000개 이상, 클래스 간 격차 축소
 AUGMENT_COPIES = {
-    "Sweet": 1,   # 총 2배
-    "Spicy": 2,   # 총 3배
+    "Fresh":          9,   # 29  → 290
+    "Spicy":          8,   # 60  → 540
+    "Sweet":          5,   # 112 → 672
+    "Amber_Oriental": 3,   # 165 → 660
+    "Citrus":         2,   # 313 → 939
+    "Woody":          2,   # 319 → 957
+    "Floral":         2,   # 345 → 1,035  (합계 ≈ 5,093)
 }
 
 AUG_SUBDIR = os.path.join("perfume_images", "augmented")
@@ -103,28 +109,22 @@ def _augment_and_save(src_path: str, dst_path: str, transform: A.Compose) -> boo
 # ──────────────────────────────────────────────
 
 def _augment_csv(
-    split: str,
-    csv_path: str,
+    src_csv: str,
+    dst_csv: str,
     image_root: str,
     aug_abs_dir: str,
     transform: A.Compose,
 ) -> None:
-    """split 하나의 CSV를 읽어 증강 후 저장합니다."""
+    """src_csv(원본)를 읽어 증강 행을 추가한 뒤 dst_csv에 저장합니다.
+    src_csv는 변경하지 않습니다."""
     print(f"\n{'=' * 55}")
-    print(f"  [{split}] {csv_path}")
+    print(f"  원본 : {src_csv}")
+    print(f"  출력 : {dst_csv}")
     print(f"{'=' * 55}")
 
-    df = pd.read_csv(csv_path)
-
-    # 이미 증강된 행이 있으면 중복 실행 방지
-    already = df["image_path"].str.contains("augmented", na=False)
-    if already.any():
-        print(f"  이미 증강 데이터 {already.sum()}건이 있어 건너뜁니다.")
-        print(f"  재실행하려면 CSV에서 augmented 행을 제거하세요.")
-        return
-
+    df = pd.read_csv(src_csv)
     new_rows = []
-    stats    = {}
+    stats = {}
 
     for label, n_copies in AUGMENT_COPIES.items():
         subset = df[df["label"] == label]
@@ -140,8 +140,7 @@ def _augment_csv(
             orig_ext  = os.path.splitext(row["image_path"])[1] or ".jpg"
 
             for i in range(1, n_copies + 1):
-                # split prefix로 파일명 충돌 방지
-                filename = f"{split}_aug{i}_{orig_stem}{orig_ext}"
+                filename = f"aug{i}_{orig_stem}{orig_ext}"
                 dst_path = os.path.join(aug_abs_dir, filename)
                 rel_path = os.path.join(AUG_SUBDIR, filename)
 
@@ -160,13 +159,13 @@ def _augment_csv(
         print("  저장된 이미지가 없습니다. 원본 경로를 확인하세요.")
         return
 
-    updated_df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
-    updated_df.to_csv(csv_path, index=False)
+    aug_df = pd.concat([df, pd.DataFrame(new_rows)], ignore_index=True)
+    aug_df.to_csv(dst_csv, index=False)
 
     print(f"\n  요약")
     for label, (orig, added) in stats.items():
         print(f"    {label:20s}: {orig}장 → {orig + added}장 (+{added})")
-    print(f"  CSV 행 수: {len(df)} → {len(updated_df)}")
+    print(f"  CSV 행 수: {len(df)}(원본) + {len(new_rows)}(증강) = {len(aug_df)}")
 
 
 # ──────────────────────────────────────────────
@@ -181,9 +180,17 @@ def run_offline_augmentation() -> None:
     os.makedirs(aug_abs_dir, exist_ok=True)
 
     transform = _build_train_transform(img_size)
-    _augment_csv("train", cfg.path.train_csv, image_root, aug_abs_dir, transform)
+    _augment_csv(
+        src_csv=cfg.path.train_csv,
+        dst_csv=cfg.path.train_aug_csv,
+        image_root=image_root,
+        aug_abs_dir=aug_abs_dir,
+        transform=transform,
+    )
 
-    print(f"\n[augment] 완료. 저장 위치: {aug_abs_dir}")
+    print(f"\n[augment] 완료.")
+    print(f"  이미지 : {aug_abs_dir}")
+    print(f"  CSV    : {cfg.path.train_aug_csv}")
 
 
 # ──────────────────────────────────────────────

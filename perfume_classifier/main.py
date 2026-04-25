@@ -5,10 +5,16 @@ main.py
 
 사용법
 ------
-# 전체 학습 실행
+# 완전 처음부터 한 번에 (재분할 → 증강 → 학습 → 평가)
+python main.py --mode full
+
+# 증강 → 학습 → 평가 (resplit 생략)
+python main.py --mode train_eval
+
+# train_aug.csv 없으면 augment 자동 실행 후 학습
 python main.py --mode train
 
-# 테스트셋 평가
+# 테스트셋 평가만
 python main.py --mode eval
 
 # 검증셋 평가
@@ -16,9 +22,6 @@ python main.py --mode eval --split val
 
 # 특정 체크포인트로 평가
 python main.py --mode eval --ckpt checkpoints/stage2_best.pth
-
-# 학습 후 바로 평가까지
-python main.py --mode train_eval
 """
 
 import argparse
@@ -36,8 +39,16 @@ def parse_args():
         "--mode",
         type=str,
         default="train_eval",
-        choices=["augment", "train", "eval", "train_eval"],
-        help="실행 모드 (기본값: train_eval) | augment: 오프라인 증강 후 종료",
+        choices=["full", "resplit", "augment", "train", "eval", "train_eval"],
+        help=(
+            "실행 모드 (기본값: train_eval)\n"
+            "  full       : resplit → augment → train → eval\n"
+            "  resplit    : 데이터 재분할만\n"
+            "  augment    : 증강만 (train_aug.csv 생성)\n"
+            "  train      : 학습 (train_aug.csv 없으면 augment 자동 실행)\n"
+            "  eval       : 평가만\n"
+            "  train_eval : 학습 + 평가 (train_aug.csv 없으면 augment 자동 실행)"
+        ),
     )
     parser.add_argument(
         "--split",
@@ -56,7 +67,7 @@ def parse_args():
         "--backbone",
         type=str,
         default=None,
-        choices=["efficientnet_b0", "mobilenet_v3_large"],
+        choices=["efficientnet_v2_s", "efficientnet_b3", "efficientnet_b0", "mobilenet_v3_large"],
         help="사용할 backbone (config.py 덮어쓰기)",
     )
     parser.add_argument(
@@ -71,12 +82,17 @@ def parse_args():
         default=None,
         help="랜덤 시드 (config.py 덮어쓰기)",
     )
+    parser.add_argument(
+        "--train",
+        type=float,
+        default=0.65,
+        help="resplit / full 모드: train 비율 (기본 0.65)",
+    )
 
     return parser.parse_args()
 
 
 def apply_cli_overrides(args):
-    """CLI 인수로 config 값을 동적으로 덮어씁니다."""
     if args.backbone:
         cfg.model.backbone = args.backbone
         print(f"[Config] backbone → {args.backbone}")
@@ -90,7 +106,7 @@ def apply_cli_overrides(args):
 
 def print_config_summary():
     print("\n" + "=" * 55)
-    print("  향수 Note 분류 시스템 - EfficientNet-B0")
+    print("  향수 Note 분류 시스템")
     print("=" * 55)
     print(f"  Backbone    : {cfg.model.backbone}")
     print(f"  Image size  : {cfg.model.image_size}x{cfg.model.image_size}")
@@ -100,7 +116,10 @@ def print_config_summary():
     print(f"  Batch size  : {cfg.train.batch_size}")
     print(f"  AMP         : {cfg.train.use_amp}")
     print(f"  WR Sampler  : {cfg.train.use_weighted_sampler}")
-    print(f"  Train CSV   : {cfg.path.train_csv}")
+    aug_exists = os.path.exists(cfg.path.train_aug_csv)
+    train_csv_used = cfg.path.train_aug_csv if aug_exists else cfg.path.train_csv
+    print(f"  Train CSV   : {os.path.basename(train_csv_used)}"
+          + ("  [증강본]" if aug_exists else "  [원본, augment 실행 시 증강본 사용]"))
     print(f"  Val CSV     : {cfg.path.val_csv}")
     print(f"  Test CSV    : {cfg.path.test_csv}")
     print(f"  Image root  : {cfg.path.image_root}")
@@ -114,32 +133,68 @@ def ensure_directories():
         os.makedirs(d, exist_ok=True)
 
 
+def _run_resplit(args):
+    from resplit import run_resplit
+    seed = args.seed if args.seed is not None else cfg.train.seed
+    run_resplit(train_ratio=args.train, seed=seed)
+
+
+def _run_augment():
+    from augment_offline import run_offline_augmentation
+    run_offline_augmentation()
+
+
+def _ensure_augmented():
+    """train_aug.csv 없으면 자동으로 augment 실행."""
+    if not os.path.exists(cfg.path.train_aug_csv):
+        print("[Auto] train_aug.csv 없음 → augment 자동 실행")
+        _run_augment()
+
+
+def _run_train():
+    from train import run_training
+    run_training()
+
+
+def _run_eval(args):
+    from evaluate import run_evaluation
+    ckpt = args.ckpt or os.path.join(cfg.path.checkpoint_dir, "stage2_best.pth")
+    metrics = run_evaluation(checkpoint_path=ckpt, split=args.split)
+    print("\n[최종 성능 요약]")
+    for k, v in metrics.items():
+        print(f"  {k:20s}: {v:.4f}")
+
+
 def main():
     args = parse_args()
     apply_cli_overrides(args)
     print_config_summary()
     ensure_directories()
 
-    if args.mode == "augment":
-        from augment_offline import run_offline_augmentation
-        run_offline_augmentation()
-        return
+    if args.mode == "full":
+        # resplit → augment → train → eval
+        _run_resplit(args)
+        _run_augment()
+        _run_train()
+        _run_eval(args)
 
-    if args.mode in ("train", "train_eval"):
-        from train import run_training
-        run_training()
+    elif args.mode == "resplit":
+        _run_resplit(args)
 
-    if args.mode in ("eval", "train_eval"):
-        from evaluate import run_evaluation
+    elif args.mode == "augment":
+        _run_augment()
 
-        ckpt = args.ckpt
-        if ckpt is None:
-            ckpt = os.path.join(cfg.path.checkpoint_dir, "stage2_best.pth")
+    elif args.mode == "train":
+        _ensure_augmented()
+        _run_train()
 
-        metrics = run_evaluation(checkpoint_path=ckpt, split=args.split)
-        print("\n[최종 성능 요약]")
-        for k, v in metrics.items():
-            print(f"  {k:20s}: {v:.4f}")
+    elif args.mode == "train_eval":
+        _ensure_augmented()
+        _run_train()
+        _run_eval(args)
+
+    elif args.mode == "eval":
+        _run_eval(args)
 
 
 if __name__ == "__main__":

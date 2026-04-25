@@ -23,6 +23,7 @@ from typing import Dict, Tuple
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 from torch.cuda.amp import GradScaler, autocast
 from torch.utils.data import DataLoader
@@ -36,6 +37,36 @@ from utils import (
 )
 
 cfg = get_config()
+
+
+# ──────────────────────────────────────────────
+# Focal Loss
+# ──────────────────────────────────────────────
+
+class FocalLoss(nn.Module):
+    """
+    FL(p_t) = -(1 - p_t)^gamma * log(p_t)
+    오분류 샘플에 더 높은 가중치를 줘서 Floral 같은 다수 클래스 편향을 억제합니다.
+    """
+    def __init__(self, gamma: float = 2.0, label_smoothing: float = 0.0):
+        super().__init__()
+        self.gamma = gamma
+        self.label_smoothing = label_smoothing
+
+    def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        ce = F.cross_entropy(logits, targets, reduction="none",
+                             label_smoothing=self.label_smoothing)
+        pt = torch.exp(-ce)
+        return ((1 - pt) ** self.gamma * ce).mean()
+
+
+def build_criterion() -> nn.Module:
+    tc = cfg.train
+    if tc.use_focal_loss:
+        print(f"[Loss] FocalLoss (gamma={tc.focal_gamma}, label_smoothing={tc.label_smoothing})")
+        return FocalLoss(gamma=tc.focal_gamma, label_smoothing=tc.label_smoothing)
+    print(f"[Loss] CrossEntropyLoss (label_smoothing={tc.label_smoothing})")
+    return nn.CrossEntropyLoss(label_smoothing=tc.label_smoothing)
 
 
 # ──────────────────────────────────────────────
@@ -182,7 +213,7 @@ def run_stage1(
 
     model.freeze_backbone()
 
-    criterion = nn.CrossEntropyLoss(label_smoothing=tc.label_smoothing)
+    criterion = build_criterion()
     optimizer = optim.Adam(
         filter(lambda p: p.requires_grad, model.parameters()),
         lr=tc.stage1_lr,
@@ -243,7 +274,7 @@ def run_stage2(
     # 마지막 3개 블록 Unfreeze + 이후 에포크마다 점진적 확장
     model.unfreeze_last_n_blocks(3)
 
-    criterion = nn.CrossEntropyLoss(label_smoothing=tc.label_smoothing)
+    criterion = build_criterion()
     param_groups = model.get_param_groups(tc.stage2_lr)
     optimizer = optim.AdamW(param_groups, weight_decay=tc.weight_decay)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(
@@ -308,9 +339,17 @@ def run_training():
     set_seed(tc.seed)
     device = get_device()
 
+    # train_aug.csv 있으면 증강본, 없으면 원본 사용
+    train_csv = (
+        cfg.path.train_aug_csv
+        if os.path.exists(cfg.path.train_aug_csv)
+        else cfg.path.train_csv
+    )
+    print(f"[Train] 사용 CSV: {os.path.basename(train_csv)}")
+
     # DataLoader
     train_loader = make_dataloader(
-        csv_path=cfg.path.train_csv,
+        csv_path=train_csv,
         split="train",
         image_root=cfg.path.image_root,
     )

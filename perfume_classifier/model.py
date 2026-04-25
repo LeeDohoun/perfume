@@ -1,7 +1,7 @@
 """
 model.py
 --------
-EfficientNet-B0 기반 향수 Note 분류 모델.
+EfficientNet 기반 향수 Note 분류 모델.
 
 - build_model()  : backbone + 커스텀 분류 Head 반환
 - freeze_backbone() / unfreeze_last_n_blocks() : 2단계 학습용 유틸
@@ -53,7 +53,7 @@ class PerfumeClassifier(nn.Module):
     """
     향수 Note 분류 모델.
 
-    backbone : EfficientNet-B0 (기본) 또는 MobileNetV3-Large
+    backbone : EfficientNet-V2-S (기본), EfficientNet-B3 (V1), EfficientNet-B0, MobileNetV3-Large
     head     : ClassificationHead (커스텀)
     """
 
@@ -70,22 +70,33 @@ class PerfumeClassifier(nn.Module):
         # ── Backbone 로드 ────────────────────────────
         weights_arg = "DEFAULT" if pretrained else None
 
-        if backbone == "efficientnet_b0":
+        if backbone == "efficientnet_v2_s":
+            base = models.efficientnet_v2_s(weights=weights_arg)
+            in_features = base.classifier[1].in_features   # 1280
+            self.backbone = base.features
+            self.pool = nn.AdaptiveAvgPool2d(1)
+
+        elif backbone == "efficientnet_b3":
+            base = models.efficientnet_b3(weights=weights_arg)
+            in_features = base.classifier[1].in_features   # 1536
+            self.backbone = base.features
+            self.pool = nn.AdaptiveAvgPool2d(1)
+
+        elif backbone == "efficientnet_b0":
             base = models.efficientnet_b0(weights=weights_arg)
-            in_features = base.classifier[1].in_features
-            # 기본 classifier 제거
-            self.backbone = base.features   # Conv 블록만 추출
+            in_features = base.classifier[1].in_features   # 1280
+            self.backbone = base.features
             self.pool = nn.AdaptiveAvgPool2d(1)
 
         elif backbone == "mobilenet_v3_large":
             base = models.mobilenet_v3_large(weights=weights_arg)
-            in_features = base.classifier[0].in_features
+            in_features = base.classifier[0].in_features   # 960
             self.backbone = base.features
             self.pool = nn.AdaptiveAvgPool2d(1)
 
         else:
             raise ValueError(f"지원하지 않는 backbone: {backbone}. "
-                             f"'efficientnet_b0' 또는 'mobilenet_v3_large'를 사용하세요.")
+                             f"'efficientnet_v2_s', 'efficientnet_b3', 'efficientnet_b0', 'mobilenet_v3_large' 중 선택하세요.")
 
         # ── 분류 Head ────────────────────────────────
         self.head = ClassificationHead(
@@ -115,7 +126,7 @@ class PerfumeClassifier(nn.Module):
     def unfreeze_last_n_blocks(self, n: int):
         """
         Stage 2: Backbone의 마지막 n개 블록(children)을 Unfreeze합니다.
-        EfficientNet-B0 기준 총 9개 블록 (features[0] ~ features[8]).
+        EfficientNet 계열 기준 총 9개 블록 (features[0] ~ features[8]).
         n=3 이면 features[6], [7], [8] 을 Unfreeze.
         """
         blocks = list(self.backbone.children())

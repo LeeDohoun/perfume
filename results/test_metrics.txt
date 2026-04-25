@@ -1,19 +1,20 @@
 Split         : test
 Checkpoint    : C:\Users\admin\perfume\perfume_classifier\..\checkpoints\stage2_best.pth
-Accuracy      : 0.2611
-Macro F1      : 0.2164
-Top-3 Accuracy: 0.7143
-Random Baseline: 0.1667
+Accuracy      : 0.2597
+Macro F1      : 0.1595
+Top-3 Accuracy: 0.6934
+Random Baseline: 0.1429
 
                 precision    recall  f1-score   support
 
-        Floral       0.29      0.30      0.29        53
-         Woody       0.33      0.31      0.32        49
-Amber_Oriental       0.19      0.23      0.21        26
-        Citrus       0.25      0.29      0.27        48
-         Sweet       0.11      0.06      0.08        17
-         Spicy       0.20      0.10      0.13        10
+        Floral       0.27      0.41      0.32        93
+         Woody       0.32      0.28      0.30        86
+Amber_Oriental       0.14      0.07      0.09        45
+        Citrus       0.32      0.32      0.32        84
+         Sweet       0.12      0.07      0.09        30
+         Spicy       0.00      0.00      0.00        16
+         Fresh       0.00      0.00      0.00         8
 
-      accuracy                           0.26       203
-     macro avg       0.23      0.21      0.22       203
-  weighted avg       0.26      0.26      0.26       203
+      accuracy                           0.26       362
+     macro avg       0.17      0.16      0.16       362
+  weighted avg       0.25      0.26      0.25       362
