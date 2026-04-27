@@ -85,8 +85,8 @@ def parse_args():
     parser.add_argument(
         "--train",
         type=float,
-        default=0.65,
-        help="resplit / full 모드: train 비율 (기본 0.65)",
+        default=0.8,
+        help="resplit / full 모드: train 비율 (기본 0.8)",
     )
 
     return parser.parse_args()

@@ -38,7 +38,7 @@ def _print_dist(df: pd.DataFrame, name: str) -> None:
         print(f"    {cls:20s}: {cnt:4d}  ({cnt/total*100:4.1f}%)  {bar}")
 
 
-def run_resplit(train_ratio: float = 0.65, seed: int = 42) -> None:
+def run_resplit(train_ratio: float = 0.8, seed: int = 42) -> None:
     val_ratio = (1.0 - train_ratio) / 2
 
     df = pd.read_csv(RAW_CSV)
@@ -83,7 +83,7 @@ def run_resplit(train_ratio: float = 0.65, seed: int = 42) -> None:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="데이터셋 재분할 (소스: all_cleaned.csv)")
-    parser.add_argument("--train", type=float, default=0.65, help="train 비율 (기본 0.65)")
+    parser.add_argument("--train", type=float, default=0.8, help="train 비율 (기본 0.8)")
     parser.add_argument("--seed",  type=int,   default=42)
     args = parser.parse_args()
 

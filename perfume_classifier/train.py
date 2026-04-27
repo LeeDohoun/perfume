@@ -25,6 +25,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+from sklearn.metrics import f1_score
 from torch.cuda.amp import GradScaler, autocast
 from torch.utils.data import DataLoader
 
@@ -170,15 +171,15 @@ def validate(
     criterion: nn.Module,
     device: torch.device,
     use_amp: bool,
-) -> Tuple[float, float]:
+) -> Tuple[float, float, float]:
     """
     Returns
     -------
-    avg_loss, accuracy (0~1)
+    avg_loss, accuracy (0~1), macro_f1 (0~1)
     """
     model.eval()
     loss_meter = AverageMeter("val_loss")
-    correct = total = 0
+    all_preds, all_labels = [], []
 
     for images, labels in loader:
         images, labels = images.to(device), labels.to(device)
@@ -188,11 +189,16 @@ def validate(
             loss   = criterion(logits, labels)
 
         loss_meter.update(loss.item(), n=images.size(0))
-        preds    = logits.argmax(dim=1)
-        correct += (preds == labels).sum().item()
-        total   += labels.size(0)
+        preds = logits.argmax(dim=1)
+        all_preds.append(preds.cpu())
+        all_labels.append(labels.cpu())
 
-    return loss_meter.avg, correct / total
+    all_preds  = torch.cat(all_preds).numpy()
+    all_labels = torch.cat(all_labels).numpy()
+    accuracy   = (all_preds == all_labels).mean()
+    macro_f1   = f1_score(all_labels, all_preds, average="macro", zero_division=0)
+
+    return loss_meter.avg, float(accuracy), float(macro_f1)
 
 
 # ──────────────────────────────────────────────
@@ -224,33 +230,36 @@ def run_stage1(
     history: Dict[str, list] = {
         "train_loss": [], "val_loss": [],
         "train_acc":  [], "val_acc":  [],
+        "val_f1":     [],
     }
 
-    best_val_loss = float("inf")
+    best_macro_f1 = 0.0
     os.makedirs(cfg.path.checkpoint_dir, exist_ok=True)
 
     for epoch in range(1, tc.stage1_epochs + 1):
         tr_loss, tr_acc = train_one_epoch(
             model, train_loader, criterion, optimizer, device, scaler, tc.use_amp
         )
-        vl_loss, vl_acc = validate(model, val_loader, criterion, device, tc.use_amp)
+        vl_loss, vl_acc, vl_f1 = validate(model, val_loader, criterion, device, tc.use_amp)
 
         history["train_loss"].append(tr_loss)
         history["val_loss"].append(vl_loss)
         history["train_acc"].append(tr_acc)
         history["val_acc"].append(vl_acc)
+        history["val_f1"].append(vl_f1)
 
         print(f"[S1 E{epoch:02d}/{tc.stage1_epochs}] "
               f"train_loss={tr_loss:.4f} acc={tr_acc:.4f} | "
-              f"val_loss={vl_loss:.4f} acc={vl_acc:.4f}")
+              f"val_loss={vl_loss:.4f} acc={vl_acc:.4f} f1={vl_f1:.4f}")
 
-        if vl_loss < best_val_loss:
-            best_val_loss = vl_loss
+        if vl_f1 > best_macro_f1:
+            best_macro_f1 = vl_f1
             save_checkpoint(
-                model, optimizer, epoch, vl_loss,
+                model, optimizer, epoch, vl_f1,
                 save_path=os.path.join(cfg.path.checkpoint_dir, "stage1_best.pth"),
-                extra={"stage": 1},
+                extra={"stage": 1, "macro_f1": vl_f1},
             )
+            print(f"  [Checkpoint] 저장: epoch={epoch}, macro_f1={vl_f1:.4f}")
 
     return history
 
@@ -281,14 +290,15 @@ def run_stage2(
         optimizer, T_max=tc.t_max, eta_min=tc.eta_min
     )
     scaler = GradScaler(enabled=tc.use_amp)
-    early_stop = EarlyStopping(patience=tc.patience, min_delta=tc.min_delta, mode="min")
+    early_stop = EarlyStopping(patience=tc.patience, min_delta=tc.min_delta, mode="max")
 
     history: Dict[str, list] = {
         "train_loss": [], "val_loss": [],
         "train_acc":  [], "val_acc":  [],
+        "val_f1":     [],
     }
 
-    best_val_loss = float("inf")
+    best_macro_f1 = 0.0
     # 점진적 Unfreeze 스케줄: epoch 6, 11 에 블록 추가 해제
     unfreeze_schedule = {6: 5, 11: 9}   # epoch → 누적 블록 수
 
@@ -300,29 +310,31 @@ def run_stage2(
         tr_loss, tr_acc = train_one_epoch(
             model, train_loader, criterion, optimizer, device, scaler, tc.use_amp
         )
-        vl_loss, vl_acc = validate(model, val_loader, criterion, device, tc.use_amp)
+        vl_loss, vl_acc, vl_f1 = validate(model, val_loader, criterion, device, tc.use_amp)
         scheduler.step()
 
         history["train_loss"].append(tr_loss)
         history["val_loss"].append(vl_loss)
         history["train_acc"].append(tr_acc)
         history["val_acc"].append(vl_acc)
+        history["val_f1"].append(vl_f1)
 
         current_lr = optimizer.param_groups[0]["lr"]
         print(f"[S2 E{epoch:02d}/{tc.stage2_epochs}] "
               f"train_loss={tr_loss:.4f} acc={tr_acc:.4f} | "
-              f"val_loss={vl_loss:.4f} acc={vl_acc:.4f} | "
+              f"val_loss={vl_loss:.4f} acc={vl_acc:.4f} f1={vl_f1:.4f} | "
               f"lr={current_lr:.6f}")
 
-        if vl_loss < best_val_loss:
-            best_val_loss = vl_loss
+        if vl_f1 > best_macro_f1:
+            best_macro_f1 = vl_f1
             save_checkpoint(
-                model, optimizer, epoch, vl_loss,
+                model, optimizer, epoch, vl_f1,
                 save_path=os.path.join(cfg.path.checkpoint_dir, "stage2_best.pth"),
-                extra={"stage": 2},
+                extra={"stage": 2, "macro_f1": vl_f1},
             )
+            print(f"  [Checkpoint] 저장: epoch={epoch}, macro_f1={vl_f1:.4f}")
 
-        if early_stop(vl_loss):
+        if early_stop(vl_f1):
             print(f"[Stage 2] Early Stopping at epoch {epoch}")
             break
 
