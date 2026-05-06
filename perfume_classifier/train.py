@@ -106,6 +106,36 @@ def _cutmix_batch(
     return images, labels, labels[rand_idx], lam
 
 
+def _add_new_trainable_backbone_params(
+    optimizer: optim.Optimizer,
+    scheduler,
+    model: PerfumeClassifier,
+    lr: float,
+    weight_decay: float,
+) -> None:
+    existing = {
+        id(param)
+        for group in optimizer.param_groups
+        for param in group["params"]
+    }
+    new_params = [
+        param
+        for param in model.backbone.parameters()
+        if param.requires_grad and id(param) not in existing
+    ]
+    if not new_params:
+        return
+
+    optimizer.add_param_group({
+        "params": new_params,
+        "lr": lr,
+        "weight_decay": weight_decay,
+    })
+    if hasattr(scheduler, "base_lrs"):
+        scheduler.base_lrs.append(lr)
+    print(f"[Optimizer] added newly unfrozen params: {sum(p.numel() for p in new_params):,}")
+
+
 # ──────────────────────────────────────────────
 # 단일 에포크 학습
 # ──────────────────────────────────────────────
@@ -129,17 +159,27 @@ def train_one_epoch(
     correct = total = 0
     tc = cfg.train
 
-    for images, labels in loader:
+    for batch in loader:
+        if cfg.text.use_text:
+            images, text_ids, labels = batch
+            text_ids = text_ids.to(device)
+        else:
+            images, labels = batch
+            text_ids = None
         images, labels = images.to(device), labels.to(device)
         optimizer.zero_grad()
 
         # CutMix: 설정된 확률로 배치에 적용
-        use_cutmix = tc.cutmix_prob > 0 and np.random.random() < tc.cutmix_prob
+        use_cutmix = (
+            not cfg.text.use_text
+            and tc.cutmix_prob > 0
+            and np.random.random() < tc.cutmix_prob
+        )
         if use_cutmix:
             images, labels_a, labels_b, lam = _cutmix_batch(images, labels, tc.cutmix_alpha)
 
         with autocast(enabled=use_amp):
-            logits = model(images)
+            logits = model(images, text_ids) if cfg.text.use_text else model(images)
             if use_cutmix:
                 loss = lam * criterion(logits, labels_a) + (1.0 - lam) * criterion(logits, labels_b)
             else:
@@ -181,11 +221,17 @@ def validate(
     loss_meter = AverageMeter("val_loss")
     all_preds, all_labels = [], []
 
-    for images, labels in loader:
+    for batch in loader:
+        if cfg.text.use_text:
+            images, text_ids, labels = batch
+            text_ids = text_ids.to(device)
+        else:
+            images, labels = batch
+            text_ids = None
         images, labels = images.to(device), labels.to(device)
 
         with autocast(enabled=use_amp):
-            logits = model(images)
+            logits = model(images, text_ids) if cfg.text.use_text else model(images)
             loss   = criterion(logits, labels)
 
         loss_meter.update(loss.item(), n=images.size(0))
@@ -233,7 +279,7 @@ def run_stage1(
         "val_f1":     [],
     }
 
-    best_macro_f1 = 0.0
+    best_macro_f1 = float("-inf")
     os.makedirs(cfg.path.checkpoint_dir, exist_ok=True)
 
     for epoch in range(1, tc.stage1_epochs + 1):
@@ -298,7 +344,7 @@ def run_stage2(
         "val_f1":     [],
     }
 
-    best_macro_f1 = 0.0
+    best_macro_f1 = float("-inf")
     # 점진적 Unfreeze 스케줄: epoch 6, 11 에 블록 추가 해제
     unfreeze_schedule = {6: 5, 11: 9}   # epoch → 누적 블록 수
 
@@ -306,6 +352,14 @@ def run_stage2(
         # 점진적 Unfreeze
         if epoch in unfreeze_schedule:
             model.unfreeze_last_n_blocks(unfreeze_schedule[epoch])
+            backbone_lr = optimizer.param_groups[1]["lr"] if len(optimizer.param_groups) > 1 else tc.stage2_lr * 0.1
+            _add_new_trainable_backbone_params(
+                optimizer=optimizer,
+                scheduler=scheduler,
+                model=model,
+                lr=backbone_lr,
+                weight_decay=tc.weight_decay,
+            )
 
         tr_loss, tr_acc = train_one_epoch(
             model, train_loader, criterion, optimizer, device, scaler, tc.use_amp

@@ -145,7 +145,13 @@ def load_checkpoint(
 ) -> Dict:
     """저장된 체크포인트를 로드합니다."""
     ckpt = torch.load(load_path, map_location=device)
-    model.load_state_dict(ckpt["model"])
+    try:
+        model.load_state_dict(ckpt["model"])
+    except RuntimeError as exc:
+        raise RuntimeError(
+            "Checkpoint does not match the current model architecture. "
+            "If text input was enabled or disabled, retrain before running eval."
+        ) from exc
     if optimizer and "optimizer" in ckpt:
         optimizer.load_state_dict(ckpt["optimizer"])
     print(f"[Checkpoint] 로드: {load_path}  (epoch={ckpt.get('epoch')}, metric={ckpt.get('metric'):.4f})")

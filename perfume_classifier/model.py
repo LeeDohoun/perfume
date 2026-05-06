@@ -45,6 +45,39 @@ class ClassificationHead(nn.Module):
         return self.head(x)
 
 
+class TextEncoder(nn.Module):
+    """Embedding encoder for fixed-length brand/name token ids."""
+
+    def __init__(
+        self,
+        vocab_size: int,
+        embedding_dim: int,
+        hidden_dim: int,
+        dropout: float = 0.3,
+        padding_idx: int = 0,
+    ):
+        super().__init__()
+        self.padding_idx = padding_idx
+        self.embedding = nn.Embedding(
+            num_embeddings=vocab_size,
+            embedding_dim=embedding_dim,
+            padding_idx=padding_idx,
+        )
+        self.proj = nn.Sequential(
+            nn.Linear(embedding_dim, hidden_dim),
+            nn.ReLU(inplace=True),
+            nn.LayerNorm(hidden_dim),
+            nn.Dropout(p=dropout),
+        )
+
+    def forward(self, token_ids: torch.Tensor) -> torch.Tensor:
+        emb = self.embedding(token_ids)
+        mask = (token_ids != self.padding_idx).unsqueeze(-1)
+        lengths = mask.sum(dim=1).clamp(min=1)
+        pooled = (emb * mask).sum(dim=1) / lengths
+        return self.proj(pooled)
+
+
 # ──────────────────────────────────────────────
 # 모델 빌더
 # ──────────────────────────────────────────────
@@ -63,9 +96,13 @@ class PerfumeClassifier(nn.Module):
         backbone: str = "efficientnet_b0",
         pretrained: bool = True,
         dropout: float = 0.3,
+        text_vocab_size: int = 0,
     ):
         super().__init__()
         self.backbone_name = backbone
+        self.use_text = cfg.text.use_text
+        self.image_feature_dim = 0
+        self.text_feature_dim = cfg.text.hidden_dim if self.use_text else 0
 
         # ── Backbone 로드 ────────────────────────────
         weights_arg = "DEFAULT" if pretrained else None
@@ -99,19 +136,42 @@ class PerfumeClassifier(nn.Module):
                              f"'efficientnet_v2_s', 'efficientnet_b3', 'efficientnet_b0', 'mobilenet_v3_large' 중 선택하세요.")
 
         # ── 분류 Head ────────────────────────────────
+        self.image_feature_dim = in_features
+        if self.use_text:
+            if text_vocab_size <= 0:
+                raise ValueError("text_vocab_size must be positive when cfg.text.use_text=True")
+            self.text_encoder = TextEncoder(
+                vocab_size=text_vocab_size,
+                embedding_dim=cfg.text.embedding_dim,
+                hidden_dim=cfg.text.hidden_dim,
+                dropout=dropout / 2,
+            )
+        else:
+            self.text_encoder = None
+
+        fused_features = self.image_feature_dim + self.text_feature_dim
+
         self.head = ClassificationHead(
-            in_features=in_features,
+            in_features=fused_features,
             num_classes=num_classes,
             dropout=dropout,
         )
 
         print(f"[Model] {backbone} 로드 완료 | pretrained={pretrained} | "
-              f"in_features={in_features} | num_classes={num_classes}")
+              f"image_features={self.image_feature_dim} | text_features={self.text_feature_dim} | "
+              f"num_classes={num_classes}")
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, text_ids: Optional[torch.Tensor] = None) -> torch.Tensor:
         x = self.backbone(x)
         x = self.pool(x)
-        x = torch.flatten(x, 1)
+        image_features = torch.flatten(x, 1)
+        if self.use_text:
+            if text_ids is None:
+                raise ValueError("text_ids is required when cfg.text.use_text=True")
+            text_features = self.text_encoder(text_ids)
+            x = torch.cat([image_features, text_features], dim=1)
+        else:
+            x = image_features
         x = self.head(x)
         return x
 
@@ -159,6 +219,8 @@ class PerfumeClassifier(nn.Module):
         Head > Backbone 마지막 블록 > 나머지 순으로 lr을 낮춥니다.
         """
         head_params     = list(self.head.parameters())
+        if self.text_encoder is not None:
+            head_params += list(self.text_encoder.parameters())
         backbone_params = [p for p in self.backbone.parameters() if p.requires_grad]
 
         return [
@@ -183,12 +245,17 @@ def build_model(num_classes: Optional[int] = None) -> PerfumeClassifier:
     """
     mc = cfg.model
     nc = num_classes or len(cfg.cls.note_classes)
+    text_vocab_size = 0
+    if cfg.text.use_text:
+        from dataset import get_text_vocab
+        text_vocab_size = len(get_text_vocab())
 
     model = PerfumeClassifier(
         num_classes=nc,
         backbone=mc.backbone,
         pretrained=mc.pretrained,
         dropout=mc.dropout,
+        text_vocab_size=text_vocab_size,
     )
     stats = model.count_parameters()
     print(f"[Model] 파라미터: 전체={stats['total']:,} | 학습가능={stats['trainable']:,}")
@@ -201,13 +268,14 @@ def build_model(num_classes: Optional[int] = None) -> PerfumeClassifier:
 if __name__ == "__main__":
     model = build_model()
     dummy = torch.randn(4, 3, 224, 224)
+    dummy_text = torch.zeros(4, cfg.text.max_len, dtype=torch.long)
 
     # Stage 1 시뮬레이션
     model.freeze_backbone()
-    out = model(dummy)
+    out = model(dummy, dummy_text) if cfg.text.use_text else model(dummy)
     print(f"Stage1 출력 shape: {out.shape}")   # (4, 6)
 
     # Stage 2 시뮬레이션
     model.unfreeze_last_n_blocks(3)
-    out = model(dummy)
+    out = model(dummy, dummy_text) if cfg.text.use_text else model(dummy)
     print(f"Stage2 출력 shape: {out.shape}")

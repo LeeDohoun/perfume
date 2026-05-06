@@ -12,7 +12,9 @@ CSV 컬럼 구조:
 """
 
 import os
-from typing import Optional, Tuple
+import re
+from collections import Counter
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import numpy as np
 import pandas as pd
@@ -32,6 +34,88 @@ except ImportError:
 from config import get_config
 
 cfg = get_config()
+
+
+class TextVocab:
+    """Small train-csv vocabulary for brand/name text features."""
+
+    pad_token = "<pad>"
+    unk_token = "<unk>"
+
+    def __init__(self, token_to_idx: Dict[str, int], max_len: int):
+        self.token_to_idx = token_to_idx
+        self.max_len = max_len
+        self.pad_idx = token_to_idx[self.pad_token]
+        self.unk_idx = token_to_idx[self.unk_token]
+
+    @classmethod
+    def build_from_csv(
+        cls,
+        csv_path: str,
+        columns: Iterable[str],
+        max_len: int,
+        min_freq: int = 1,
+    ) -> "TextVocab":
+        df = pd.read_csv(csv_path)
+        counter: Counter = Counter()
+        for _, row in df.iterrows():
+            counter.update(tokenize_text(build_text(row, columns)))
+
+        token_to_idx = {cls.pad_token: 0, cls.unk_token: 1}
+        for token, count in sorted(counter.items()):
+            if count >= min_freq:
+                token_to_idx[token] = len(token_to_idx)
+
+        print(
+            f"[TextVocab] source={csv_path} | columns={list(columns)} | "
+            f"vocab_size={len(token_to_idx)} | max_len={max_len}"
+        )
+        return cls(token_to_idx=token_to_idx, max_len=max_len)
+
+    def encode(self, text: str) -> torch.Tensor:
+        ids = [
+            self.token_to_idx.get(token, self.unk_idx)
+            for token in tokenize_text(text)[: self.max_len]
+        ]
+        if len(ids) < self.max_len:
+            ids.extend([self.pad_idx] * (self.max_len - len(ids)))
+        return torch.tensor(ids, dtype=torch.long)
+
+    def __len__(self) -> int:
+        return len(self.token_to_idx)
+
+
+_TEXT_VOCAB_CACHE: Dict[Tuple[str, Tuple[str, ...], int, int], TextVocab] = {}
+
+
+def tokenize_text(text: str) -> List[str]:
+    text = "" if text is None else str(text).lower()
+    return re.findall(r"[a-z0-9]+", text)
+
+
+def build_text(row, columns: Iterable[str]) -> str:
+    values = []
+    for column in columns:
+        value = row[column] if column in row.index else ""
+        if pd.isna(value):
+            value = ""
+        values.append(str(value))
+    return " ".join(values)
+
+
+def get_text_vocab() -> TextVocab:
+    tc = cfg.text
+    columns = tuple(tc.columns)
+    train_csv = os.path.abspath(cfg.path.train_csv)
+    key = (train_csv, columns, tc.max_len, tc.min_freq)
+    if key not in _TEXT_VOCAB_CACHE:
+        _TEXT_VOCAB_CACHE[key] = TextVocab.build_from_csv(
+            csv_path=train_csv,
+            columns=columns,
+            max_len=tc.max_len,
+            min_freq=tc.min_freq,
+        )
+    return _TEXT_VOCAB_CACHE[key]
 
 
 # ──────────────────────────────────────────────
@@ -148,6 +232,9 @@ class PerfumeDataset(Dataset):
         self.split = split
         self.image_root = image_root
         self.transform = transform or get_transforms(split)
+        self.use_text = cfg.text.use_text
+        self.text_columns = cfg.text.columns
+        self.text_vocab = get_text_vocab() if self.use_text else None
 
         # 클래스 → 인덱스 매핑
         self.classes = cfg.cls.note_classes
@@ -167,7 +254,7 @@ class PerfumeDataset(Dataset):
     def __len__(self) -> int:
         return len(self.df)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, int]:
+    def __getitem__(self, idx: int):
         row = self.df.iloc[idx]
         img_path = self._resolve_path(row["image_path"])
 
@@ -183,6 +270,9 @@ class PerfumeDataset(Dataset):
             image = self.transform(image)
 
         label = int(self.labels[idx])
+        if self.use_text:
+            text_ids = self.text_vocab.encode(build_text(row, self.text_columns))
+            return image, text_ids, label
         return image, label
 
     # ── 내부 유틸 ────────────────────────────────
@@ -273,6 +363,11 @@ if __name__ == "__main__":
         split="train",
         image_root=cfg.path.image_root,
     )
-    images, labels = next(iter(loader))
+    batch = next(iter(loader))
+    if cfg.text.use_text:
+        images, text_ids, labels = batch
+        print(f"text ids shape      : {text_ids.shape}")
+    else:
+        images, labels = batch
     print(f"배치 이미지 shape : {images.shape}")   # (B, 3, 224, 224)
     print(f"배치 레이블       : {labels}")

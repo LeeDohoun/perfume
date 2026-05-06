@@ -65,6 +65,17 @@ class ModelConfig:
     image_size: int = 224
 
 
+@dataclass
+class TextConfig:
+    # Text features are rebuilt from train_csv in both train and eval.
+    use_text: bool = True
+    columns: List[str] = field(default_factory=lambda: ["brand", "name"])
+    max_len: int = 32
+    min_freq: int = 1
+    embedding_dim: int = 128
+    hidden_dim: int = 256
+
+
 # ──────────────────────────────────────────────
 # 2단계 학습 설정
 # ──────────────────────────────────────────────
@@ -141,6 +152,7 @@ class Config:
     path:  PathConfig  = field(default_factory=PathConfig)
     cls:   ClassConfig = field(default_factory=ClassConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
+    text:  TextConfig  = field(default_factory=TextConfig)
     train: TrainConfig = field(default_factory=TrainConfig)
     aug:   AugConfig   = field(default_factory=AugConfig)
 

@@ -111,6 +111,7 @@ def print_config_summary():
     print(f"  Backbone    : {cfg.model.backbone}")
     print(f"  Image size  : {cfg.model.image_size}x{cfg.model.image_size}")
     print(f"  Classes     : {cfg.cls.note_classes}")
+    print(f"  Text input  : {cfg.text.use_text} | columns={cfg.text.columns} | max_len={cfg.text.max_len}")
     print(f"  Stage1      : {cfg.train.stage1_epochs} epochs | lr={cfg.train.stage1_lr}")
     print(f"  Stage2      : {cfg.train.stage2_epochs} epochs | lr={cfg.train.stage2_lr}")
     print(f"  Batch size  : {cfg.train.batch_size}")

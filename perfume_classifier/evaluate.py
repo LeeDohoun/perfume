@@ -62,11 +62,17 @@ def run_inference(
     model.eval()
     all_labels, all_preds, all_probs = [], [], []
 
-    for images, labels in loader:
+    for batch in loader:
+        if cfg.text.use_text:
+            images, text_ids, labels = batch
+            text_ids = text_ids.to(device)
+        else:
+            images, labels = batch
+            text_ids = None
         images = images.to(device)
 
         with autocast(enabled=use_amp):
-            logits = model(images)                   # (B, C)
+            logits = model(images, text_ids) if cfg.text.use_text else model(images)
 
         probs = torch.softmax(logits, dim=1).cpu().numpy()
         preds = logits.argmax(dim=1).cpu().numpy()
