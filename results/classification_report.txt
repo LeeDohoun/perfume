@@ -1,0 +1,16 @@
+Test accuracy: 0.6241
+Test top-3 accuracy: 0.9138
+
+                precision    recall  f1-score   support
+
+Amber_Oriental     0.3513    0.5045    0.4142       220
+        Citrus     0.4060    0.5217    0.4567       207
+        Floral     0.7827    0.7484    0.7651      1097
+         Fresh     0.4516    0.6604    0.5364       212
+         Spicy     0.1463    0.1176    0.1304        51
+         Sweet     0.2990    0.3333    0.3152        87
+         Woody     0.7355    0.5761    0.6461       946
+
+      accuracy                         0.6241      2820
+     macro avg     0.4532    0.4946    0.4663      2820
+  weighted avg     0.6542    0.6241    0.6326      2820
