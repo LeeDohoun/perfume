@@ -1,175 +1,138 @@
-# Perfume Image Classification
+# PERFUME
 
-향수 병 이미지를 기반으로 **향 계열(Note)** 또는 **브랜드(Brand)** 를 분류하는 딥러닝 프로젝트입니다.
+향수 상품 이미지와 간단한 메타데이터를 입력으로 받아 향수의 Note 계열을 분류하는 프로젝트입니다. 현재 기준 파이프라인은 찬준 브랜치의 `data/All` 데이터와 `perfume_classifier` 모델 코드를 사용합니다.
 
----
+## Current Pipeline
 
-## 프로젝트 목표
+1. 학습/평가 데이터는 `data/All/train.csv`, `data/All/val.csv`, `data/All/test.csv`입니다.
+2. 학습 시 `data/All/train_aug.csv`가 있으면 원본 train 대신 증강 train을 사용합니다.
+3. 모델은 EfficientNet-B0 이미지 feature와 `brand`, `name` 텍스트 feature를 결합해 7개 Note 클래스를 예측합니다.
+4. `notes` 컬럼은 CSV에 남아 있지만 모델 입력에는 사용하지 않습니다. Note 라벨의 근거라서 입력으로 쓰면 데이터 누수에 가깝습니다.
+5. 평가 결과는 `results/test_metrics.txt`에 저장됩니다.
 
-| 태스크 | 입력 | 출력 |
-|--------|------|------|
-| Note 분류 | 향수병 이미지 | 향 계열 6종 (Floral, Woody, Citrus 등) |
-| Brand 분류 | 향수병 이미지 | 브랜드 35종 (BYREDO, Le Labo 등) |
+## Current Data
 
-## 목표 정확도
+| split | rows |
+|---|---:|
+| train | 22,557 |
+| val | 2,820 |
+| test | 2,820 |
+| train_aug | 41,061 |
 
-| 모델 | 태스크 | 목표 Test Accuracy |
-|------|--------|--------------------|
-| EfficientNet-B0 | Note 분류 | 35 ~ 50% |
-| EfficientNet-B0 | Brand 분류 | 40 ~ 65% |
-| CLIP ViT-B/32 | Note 분류 | 45 ~ 60% |
-| TF-IDF + LogisticRegression | Note 분류 | 45 ~ 60% |
+현재 Note 클래스는 7개입니다.
 
----
+- `Floral`
+- `Woody`
+- `Amber_Oriental`
+- `Citrus`
+- `Sweet`
+- `Spicy`
+- `Fresh`
 
-## 현재 진행 상황
+테스트셋 분포:
 
-```
-[완료] 1단계: 데이터 수집 및 이미지 다운로드   scripts/collect_images.py
-[완료] 2단계: 전처리 및 분할                  scripts/prepare_data.py
-[완료] 3단계: 모델 선정                       docs/model_recommendation.md 참고
-[진행] 4단계: EfficientNet-B0 학습            scripts/train_efficientnet.py
-[진행] 5단계: CLIP Note 평가                  scripts/eval_clip_note.py
-[완료] 6단계: Note 정확도 개선 모델           scripts/train_note_text.py
-```
+| label | test rows |
+|---|---:|
+| Floral | 1,097 |
+| Woody | 946 |
+| Amber_Oriental | 220 |
+| Fresh | 212 |
+| Citrus | 207 |
+| Sweet | 87 |
+| Spicy | 51 |
 
----
+## Latest Evaluation
 
-## 프로젝트 구조
+실행일: 2026-05-11  
+체크포인트: `checkpoints/stage2_best.pth`  
+평가 split: `data/All/test.csv`
 
-```
-perfume/
-├── data/
-│   ├── raw/
-│   │   ├── final_perfume_data.csv   # 원본 데이터 (2,191개)
-│   │   └── all_cleaned.csv          # 이미지 다운로드 완료 데이터 (2,067개)
-│   ├── note/
-│   │   ├── train.csv                # 1,006개
-│   │   ├── val.csv                  # 126개
-│   │   └── test.csv                 # 126개
-│   └── brand/
-│       ├── train.csv                # 652개
-│       ├── val.csv                  # 81개
-│       └── test.csv                 # 82개
-├── perfume_images/                  # 다운로드된 향수병 이미지 (2,067장)
-├── scripts/
-│   ├── collect_images.py            # 1단계: 데이터 수집 및 이미지 다운로드
-│   ├── prepare_data.py              # 2단계: 전처리 및 태스크별 분할
-│   ├── train_efficientnet.py        # EfficientNet-B0 학습 및 평가
-│   ├── eval_clip_note.py            # CLIP zero-shot / linear-probe Note 평가
-│   ├── train_note_text.py           # Note 개선용 메타데이터 텍스트 모델
-│   ├── eval_efficientnet.py         # 저장된 EfficientNet 체크포인트 평가
-│   └── eval_note_text.py            # 저장된 Note 텍스트 모델 평가
-├── docs/
-│   ├── report.md                    # 제출/발표용 보고서
-│   ├── results.md                   # 실험 결과 및 재현 기록
-│   └── model_recommendation.md      # 모델 추천 및 비교
-├── requirements.txt
-└── README.md
-```
+| metric | value |
+|---|---:|
+| Accuracy | 0.5191 |
+| Macro F1 | 0.3226 |
+| Top-3 Accuracy | 0.8766 |
+| Random Baseline | 0.1429 |
 
----
+클래스별 결과:
 
-## 데이터 파이프라인
+| label | precision | recall | f1-score | support |
+|---|---:|---:|---:|---:|
+| Floral | 0.63 | 0.69 | 0.66 | 1,097 |
+| Woody | 0.50 | 0.54 | 0.52 | 946 |
+| Amber_Oriental | 0.29 | 0.19 | 0.23 | 220 |
+| Citrus | 0.38 | 0.35 | 0.37 | 207 |
+| Sweet | 0.19 | 0.07 | 0.10 | 87 |
+| Spicy | 0.07 | 0.04 | 0.05 | 51 |
+| Fresh | 0.33 | 0.33 | 0.33 | 212 |
 
-### 1단계 - 데이터 수집 (`scripts/collect_images.py`)
+해석하면 top-1 정확도는 약 52%이고, 정답이 상위 3개 후보 안에 들어가는 비율은 약 88%입니다. 추천/검색 보조처럼 후보를 보여주는 방식에서는 Top-3 결과가 특히 유용합니다.
 
-- 출처: LuckyScent 향수 데이터 (`final_perfume_data.csv`)
-- 원본 2,191개 중 이미지 다운로드 성공 **2,067개** 사용
-- 검증: 100×100px 미만 이미지 제거, RGB 변환
+데이터 추가 방식과 현재 학습 방식의 적합성 판단은 `docs/data_training_suitability.md`에 정리했습니다.
 
-### 2단계 - 전처리 (`scripts/prepare_data.py`)
+## How To Run
 
-**Note 분류 전처리**
-
-| 처리 | 내용 |
-|------|------|
-| 라벨 방식 | Notes 문자열을 콤마로 분리 → 노트별 키워드 매칭 |
-| 동점 제거 | 2개 이상 계열이 동점이면 제거 (기존 44% 동점 문제 해결) |
-| Fresh 제거 | 45개로 샘플 부족 → lavender는 Floral, lemongrass는 Citrus로 이전 |
-| 최소 기준 | 클래스당 20개 미만 제거 |
-| 결과 | 6클래스, 총 1,258개 |
-
-**Note 클래스 분포 (train 기준)**
-
-| 클래스 | 샘플 수 |
-|--------|---------|
-| Floral | 254 |
-| Woody | 253 |
-| Amber_Oriental | 166 |
-| Citrus | 153 |
-| Sweet | 98 |
-| Spicy | 82 |
-
-**Brand 분류 전처리**
-
-| 처리 | 내용 |
-|------|------|
-| 필터 기준 | 샘플 15개 이상 브랜드만 사용 |
-| 결과 | 35개 브랜드, 총 815개 |
-
-**데이터 분할** (공통): Stratified 80 / 10 / 10
-
----
-
-## 설치 및 실행
+현재 체크포인트 재평가:
 
 ```bash
-# 환경 설치
-pip install -r requirements.txt
-
-# 전처리 실행 (data/ 폴더 내 CSV 생성)
-python scripts/prepare_data.py
-
-# EfficientNet-B0: Note 분류
-python scripts/train_efficientnet.py --task note
-
-# EfficientNet-B0: Brand 분류
-python scripts/train_efficientnet.py --task brand
-
-# CLIP: Note linear-probe 평가 (목표 45~60%)
-python scripts/eval_clip_note.py --mode linear_probe --split test
-
-# CLIP: Note zero-shot 기준선 확인
-python scripts/eval_clip_note.py --mode zero_shot --split test
-
-# Note 정확도 개선: name + brand + description 텍스트 모델
-python scripts/train_note_text.py
-
-# 저장된 모델 재평가
-python scripts/eval_efficientnet.py --task note --device cpu
-python scripts/eval_efficientnet.py --task brand --device cpu
-python scripts/eval_note_text.py
+cd perfume_classifier
+../.venv/bin/python main.py --mode eval
 ```
 
-> `scripts/collect_images.py` (이미지 다운로드)는 이미 완료된 단계입니다.  
-> `data/raw/all_cleaned.csv` 와 `perfume_images/` 가 존재하면 `scripts/prepare_data.py` 부터 실행하면 됩니다.
+검증셋 평가:
 
----
-
-## 모델 추천
-
-`docs/model_recommendation.md` 참고
-
-현재 실험 결과와 Note 태스크의 문제점은 `docs/results.md` 참고
-
-| 태스크 | 추천 모델 | 이유 |
-|--------|-----------|------|
-| Note 분류 | TF-IDF + LogisticRegression, CLIP, EfficientNet-B0 | 이미지 단독은 한계가 있어 메타데이터 텍스트 모델이 현재 목표 도달 |
-| Brand 분류 | EfficientNet-B0 | 브랜드 병 디자인 학습 목표 40~65% |
-
----
-
-## 요구사항
-
+```bash
+cd perfume_classifier
+../.venv/bin/python main.py --mode eval --split val
 ```
-torch >= 2.0.0
-torchvision >= 0.15.0
-Pillow >= 9.0.0
-pandas >= 1.5.0
-scikit-learn >= 1.2.0
-requests >= 2.28.0
-numpy < 2.0
-open_clip_torch >= 2.24.0
-joblib >= 1.3.0
+
+학습 후 평가:
+
+```bash
+cd perfume_classifier
+../.venv/bin/python main.py --mode train_eval
 ```
+
+옵션 예시:
+
+```bash
+python main.py --mode train --backbone mobilenet_v3_large
+python main.py --mode train --batch_size 16
+python main.py --mode train --seed 123
+```
+
+## Project Structure
+
+```text
+perfume/
+├── checkpoints/
+│   ├── stage1_best.pth
+│   └── stage2_best.pth
+├── data/
+│   ├── All/
+│   │   ├── train.csv
+│   │   ├── val.csv
+│   │   ├── test.csv
+│   │   └── train_aug.csv
+│   ├── brand/
+│   ├── note/
+│   └── raw/
+├── perfume_classifier/
+│   ├── config.py
+│   ├── dataset.py
+│   ├── evaluate.py
+│   ├── main.py
+│   ├── model.py
+│   ├── train.py
+│   └── utils.py
+├── perfume_images/
+├── results/
+│   └── test_metrics.txt
+└── docs/
+```
+
+## Notes
+
+- `checkpoints/`는 `.gitignore` 대상이라 Git에는 올라가지 않습니다.
+- macOS에서도 CSV의 `perfume_images\...` 경로를 읽을 수 있도록 `perfume_classifier/dataset.py`에서 경로를 정규화합니다.
+- 현재 환경에 `matplotlib`/`seaborn`이 없으면 그래프 저장은 건너뛰고, 정확도와 classification report는 정상 저장합니다.
