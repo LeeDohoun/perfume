@@ -1,0 +1,13 @@
+Test accuracy: 0.7610
+Test top-3 accuracy: 0.9638
+
+              precision    recall  f1-score   support
+
+       Amber     0.5559    0.4781    0.5141       343
+      Floral     0.8211    0.8671    0.8434      1106
+       Fresh     0.7075    0.6722    0.6894       421
+       Woody     0.7732    0.7789    0.7761       950
+
+    accuracy                         0.7610      2820
+   macro avg     0.7144    0.6991    0.7058      2820
+weighted avg     0.7558    0.7610    0.7577      2820

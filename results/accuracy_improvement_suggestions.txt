@@ -1,0 +1,296 @@
+================================================================================
+  CLIP 향수 분류기 정확도 향상 방안 분석 보고서
+  작성일: 2026-05-11
+================================================================================
+
+[ 현재 성능 요약 ]
+  - Test Accuracy       : 62.41%
+  - Test Top-3 Accuracy : 91.38%
+
+  클래스별 성능 (F1-Score 기준):
+    Floral          : 0.7651  (support: 1097) ← 가장 높음
+    Woody           : 0.6461  (support:  946)
+    Fresh           : 0.5364  (support:  212)
+    Citrus          : 0.4567  (support:  207)
+    Amber_Oriental  : 0.4142  (support:  220)
+    Sweet           : 0.3152  (support:   87)
+    Spicy           : 0.1304  (support:   51) ← 가장 낮음
+
+--------------------------------------------------------------------------------
+[ 문제 진단 ]
+--------------------------------------------------------------------------------
+
+1. 심각한 클래스 불균형 (Class Imbalance)
+   Train 데이터 분포:
+     Floral         : 8,777개 (38.9%)
+     Woody          : 7,566개 (33.5%)
+     Amber_Oriental : 1,758개  (7.8%)
+     Fresh          : 1,694개  (7.5%)
+     Citrus         : 1,651개  (7.3%)
+     Sweet          :   703개  (3.1%)
+     Spicy          :   408개  (1.8%)
+   
+   → Floral/Woody가 전체의 72%를 차지하며, Spicy는 0.4%에 불과.
+     WeightedRandomSampler를 사용하지만 Spicy F1이 0.13으로 매우 낮음.
+
+2. 약한 CLIP 모델 (clip-vit-base-patch32)
+   → 더 큰 CLIP 모델(clip-vit-large-patch14 등)을 사용하면 표현력 향상.
+
+3. 단순한 분류 헤드 구조
+   현재: LayerNorm → Linear → GELU → Dropout → Linear
+   → 두 레이어짜리 MLP로 복잡한 향수 계열 분류에는 표현력 부족.
+
+4. 임베딩 캐시 방식의 제약
+   현재 cache_embeddings=True + freeze_clip=True 기본값으로
+   CLIP 백본이 완전히 고정되어 있어 파인튜닝 없이 헤드만 학습.
+   → CLIP 자체를 도메인에 맞게 fine-tuning하는 효과가 없음.
+
+5. 텍스트 feature 품질 제한
+   현재 build_text: "perfume name: X. brand: Y. fragrance notes: Z"
+   → notes 필드가 CLIP의 77 token 한도를 초과할 경우 잘림.
+     더 중요한 note 정보가 누락될 수 있음.
+
+6. 고정된 학습률 스케줄 (CosineAnnealingLR)
+   → Warmup 없이 바로 높은 lr로 시작하면 초기 불안정.
+
+================================================================================
+[ 정확도 향상 방안 (우선순위 순) ]
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+★★★ 방안 1: 더 큰 CLIP 모델 사용 [HIGH IMPACT]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  현재: openai/clip-vit-base-patch32  (projection_dim=512)
+  권장: openai/clip-vit-large-patch14 (projection_dim=768)
+
+  실행 방법:
+    python data_classifier/train_clip_classifier.py \
+      --clip-model openai/clip-vit-large-patch14 \
+      --rebuild-embedding-cache
+
+  예상 효과: +3~7% accuracy 향상
+  이유: ViT-Large는 이미지/텍스트 임베딩 품질이 현저히 높음.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+★★★ 방안 2: 분류 헤드 개선 (더 깊은 MLP + Residual) [HIGH IMPACT]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  현재 FeatureClassifier:
+    LayerNorm → Linear(dim, 512) → GELU → Dropout → Linear(512, num_classes)
+
+  개선안:
+    class ImprovedFeatureClassifier(nn.Module):
+        def __init__(self, feature_dim, num_classes, hidden_dim=512, dropout=0.25):
+            super().__init__()
+            self.net = nn.Sequential(
+                nn.LayerNorm(feature_dim),
+                nn.Linear(feature_dim, hidden_dim * 2),
+                nn.GELU(),
+                nn.Dropout(dropout),
+                nn.Linear(hidden_dim * 2, hidden_dim),
+                nn.GELU(),
+                nn.Dropout(dropout * 0.5),
+                nn.Linear(hidden_dim, num_classes),
+            )
+        def forward(self, x):
+            return self.net(x)
+
+  아니면 hidden_dim 확대: --hidden-dim 1024
+
+  예상 효과: +1~3% accuracy 향상
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+★★★ 방안 3: CLIP 백본 부분 fine-tuning [HIGH IMPACT]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  현재: CLIP 완전 동결(freeze) + 헤드만 학습
+
+  개선안 (2단계 훈련):
+    Stage 1: CLIP 동결, 헤드만 학습 (현재 방식, ~10 epochs)
+    Stage 2: CLIP 마지막 N개 레이어 unfreeze, 매우 낮은 lr로 fine-tuning
+
+  실행 방법:
+    # Stage 1 (캐시 사용):
+    python data_classifier/train_clip_classifier.py \
+      --cache-embeddings --freeze-clip --epochs 15
+
+    # Stage 2 (전체 훈련, 낮은 lr):
+    python data_classifier/train_clip_classifier.py \
+      --no-cache-embeddings --train-clip \
+      --lr 1e-5 --weight-decay 1e-4 --epochs 10
+
+  코드 수정 필요:
+    ClipFusionClassifier.unfreeze_last_n_layers(n=4) 메서드 추가 권장.
+  
+  예상 효과: +3~8% accuracy 향상
+  주의: GPU 메모리 많이 필요, 학습 시간 대폭 증가
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+★★ 방안 4: 클래스 불균형 대응 [수정됨 - 2026-05-11]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  현재: WeightedRandomSampler 사용 + label_smoothing=0.05
+  문제: Spicy(51개), Sweet(87개)가 여전히 저성능
+
+  [실험 결과] --weighted-loss 적용 시 성능 오히려 하락!
+  원인: 이중 패널티(Double Penalty) 문제
+    WeightedRandomSampler → 소수 클래스 이미 과샘플링
+         +
+    weighted CrossEntropy  → 소수 클래스에 또 높은 loss 가중치
+         =
+    소수 클래스에 이중 보정 → 모델 과보정 → 전체 정확도 하락
+
+  ✅ 올바른 해결책: Focal Loss (--use-focal-loss)
+     Focal Loss는 "어려운 샘플"에 자동으로 집중하는 방식으로
+     Sampler와 중복 없이 작동함. 이미 코드에 추가되어 있음.
+
+  실행 (코드 수정 불필요, 플래그만 변경):
+    python data_classifier/train_clip_classifier.py ^
+      --use-focal-loss ^
+      --focal-gamma 2.0 ^
+      --label-smoothing 0.05
+
+  gamma 값 가이드:
+    gamma=0.5 → 약한 초점 (클래스 불균형이 심하지 않을 때)
+    gamma=1.0 → 중간
+    gamma=2.0 → 표준 Focal Loss (기본값, 권장)
+    gamma=3.0 → 강한 초점 (Spicy처럼 극소수 클래스)
+
+  4-2. augmented train 데이터 사용 (Focal Loss와 병행 가능):
+       --train-csv data/All/train_aug.csv  (이미 존재!)
+
+  권장 실행:
+    python data_classifier/train_clip_classifier.py ^
+      --train-csv data/All/train_aug.csv ^
+      --use-focal-loss ^
+      --focal-gamma 2.0 ^
+      --label-smoothing 0.05 ^
+      --rebuild-embedding-cache
+
+  예상 효과: Spicy/Sweet 클래스 F1 향상 + 전체 정확도 유지/향상
+  주의: --weighted-loss는 Sampler와 함께 사용 금지!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+★★ 방안 5: 학습률 스케줄 및 하이퍼파라미터 최적화 [MEDIUM IMPACT]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  5-1. Warmup + CosineAnnealing:
+    from torch.optim.lr_scheduler import SequentialLR, LinearLR, CosineAnnealingLR
+
+    warmup = LinearLR(optimizer, start_factor=0.1, end_factor=1.0, total_iters=3)
+    cosine = CosineAnnealingLR(optimizer, T_max=args.epochs - 3)
+    scheduler = SequentialLR(optimizer, schedulers=[warmup, cosine], milestones=[3])
+
+  5-2. 더 낮은 lr + 더 많은 epoch:
+    --lr 5e-4 --epochs 30 --patience 8
+
+  5-3. gradient clipping 추가:
+    scaler.unscale_(optimizer)
+    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+
+  예상 효과: +1~2% accuracy 향상
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+★★ 방안 6: 텍스트 표현 강화 [MEDIUM IMPACT]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  현재 build_text():
+    "perfume name: X. brand: Y. fragrance notes: Z"
+
+  개선안 - 향수 계열 특성을 강조하는 문장 추가:
+    def build_text(row):
+        name = str(row.get("name", "") or "").strip()
+        brand = str(row.get("brand", "") or "").strip()
+        notes = str(row.get("notes", "") or "").strip()
+        
+        # notes에서 핵심 노트만 추출 (앞 5개)
+        key_notes = ", ".join(notes.split(",")[:5]) if notes else ""
+        
+        parts = []
+        if name:
+            parts.append(f"This is a perfume called {name}")
+        if brand:
+            parts.append(f"by {brand}")
+        if key_notes:
+            parts.append(f"with notes of {key_notes}")
+        
+        return ". ".join(parts) if parts else "a perfume product"
+
+  예상 효과: +0.5~2% accuracy 향상
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+★ 방안 7: 이미지 증강 (Image Augmentation) [LOW~MEDIUM IMPACT]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  현재: CLIPProcessor 기본 전처리만 사용
+  개선: torchvision transforms로 augmentation 추가
+
+  __getitem__ 수정:
+    from torchvision import transforms
+    
+    self.augment = transforms.Compose([
+        transforms.RandomHorizontalFlip(),
+        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.1),
+        transforms.RandomAffine(degrees=5, translate=(0.05, 0.05)),
+    ]) if train_mode else transforms.Compose([])
+    
+    image = Image.open(image_path).convert("RGB")
+    if self.train_mode:
+        image = self.augment(image)
+
+  예상 효과: +0.5~2% accuracy 향상
+  주의: embedding cache 사용 시에는 효과 없음 (미리 추출된 임베딩 사용).
+        --no-cache-embeddings 모드에서만 동작.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+★ 방안 8: 앙상블 (Ensemble) [MEDIUM IMPACT]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  다른 seed, 다른 하이퍼파라미터로 학습한 모델들의 softmax 평균:
+    
+    python ... --seed 42
+    python ... --seed 123
+    python ... --seed 2024
+    
+    # 예측 앙상블:
+    final_probs = (probs_model1 + probs_model2 + probs_model3) / 3
+    final_preds = final_probs.argmax(axis=1)
+
+  예상 효과: +1~3% accuracy 향상
+
+================================================================================
+[ 즉시 실행 가능한 권장 명령어 (효과 대비 비용 최적) ]
+================================================================================
+
+# 1단계: augmented data + weighted loss + 최적 하이퍼파라미터
+python data_classifier/train_clip_classifier.py ^
+  --train-csv data/All/train_aug.csv ^
+  --weighted-loss ^
+  --label-smoothing 0.1 ^
+  --hidden-dim 1024 ^
+  --dropout 0.2 ^
+  --lr 5e-4 ^
+  --epochs 25 ^
+  --patience 7 ^
+  --rebuild-embedding-cache
+
+# 2단계: 더 큰 모델로 재시도 (GPU 메모리 여유 있을 때)
+python data_classifier/train_clip_classifier.py ^
+  --clip-model openai/clip-vit-large-patch14 ^
+  --train-csv data/All/train_aug.csv ^
+  --weighted-loss ^
+  --label-smoothing 0.1 ^
+  --hidden-dim 1024 ^
+  --rebuild-embedding-cache
+
+================================================================================
+[ 예상 최종 성능 ]
+================================================================================
+  현재: 62.41%
+  방안 4 (aug data + weighted loss) 적용 후    : ~65~67%
+  방안 1 (ViT-Large) 추가 적용 후              : ~68~72%
+  방안 3 (CLIP fine-tuning) 추가 적용 후       : ~73~78%
+  모든 방안 + 앙상블 적용 후                   : ~78~83%
+
+================================================================================
+[ 핵심 요약 ]
+================================================================================
+  1. 즉시 효과: train_aug.csv 사용 + --weighted-loss + --hidden-dim 1024
+  2. 큰 효과:   --clip-model openai/clip-vit-large-patch14 으로 변경
+  3. 최고 효과: CLIP 백본 fine-tuning (--train-clip, --lr 1e-5)
+  4. 소수 클래스(Spicy, Sweet) 성능이 전체 macro avg를 끌어내리고 있으므로
+     weighted_loss와 focal loss가 특히 중요함.
+================================================================================

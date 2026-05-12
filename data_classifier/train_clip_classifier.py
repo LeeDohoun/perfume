@@ -92,21 +92,12 @@ def maybe_copy_data_to_local(args) -> None:
 
 
 def build_text(row: pd.Series) -> str:
-    name = str(row.get("name", "") or "").strip()
-    brand = str(row.get("brand", "") or "").strip()
     notes = str(row.get("notes", "") or "").strip()
 
-    parts = []
-    if name:
-        parts.append(f"perfume name: {name}")
-    if brand:
-        parts.append(f"brand: {brand}")
     if notes:
-        parts.append(f"fragrance notes: {notes}")
+        return f"fragrance notes: {notes}"
 
-    if not parts:
-        return "a perfume product"
-    return ". ".join(parts)
+    return "fragrance notes unavailable"
 
 
 class PerfumeClipDataset(Dataset):
@@ -145,17 +136,30 @@ def collate_fn(batch):
 
 
 class ClipFusionClassifier(nn.Module):
-    def __init__(self, clip_model_name: str, num_classes: int, hidden_dim: int, dropout: float):
+    def __init__(self, clip_model_name: str, num_classes: int, hidden_dim: int, dropout: float, num_layers: int = 2):
         super().__init__()
         self.clip = CLIPModel.from_pretrained(clip_model_name)
         projection_dim = self.clip.config.projection_dim
-        self.classifier = nn.Sequential(
-            nn.LayerNorm(projection_dim * 2),
-            nn.Linear(projection_dim * 2, hidden_dim),
-            nn.GELU(),
-            nn.Dropout(dropout),
-            nn.Linear(hidden_dim, num_classes),
-        )
+        feature_dim = projection_dim * 2
+        if num_layers >= 3:
+            self.classifier = nn.Sequential(
+                nn.LayerNorm(feature_dim),
+                nn.Linear(feature_dim, hidden_dim * 2),
+                nn.GELU(),
+                nn.Dropout(dropout),
+                nn.Linear(hidden_dim * 2, hidden_dim),
+                nn.GELU(),
+                nn.Dropout(dropout * 0.5),
+                nn.Linear(hidden_dim, num_classes),
+            )
+        else:
+            self.classifier = nn.Sequential(
+                nn.LayerNorm(feature_dim),
+                nn.Linear(feature_dim, hidden_dim),
+                nn.GELU(),
+                nn.Dropout(dropout),
+                nn.Linear(hidden_dim, num_classes),
+            )
 
     def freeze_clip(self):
         for param in self.clip.parameters():
@@ -164,6 +168,33 @@ class ClipFusionClassifier(nn.Module):
     def unfreeze_clip(self):
         for param in self.clip.parameters():
             param.requires_grad = True
+
+    def unfreeze_last_n_layers(self, n: int) -> None:
+        """Freeze all CLIP params, then unfreeze the last n transformer blocks
+        in both vision & text encoders plus the projection heads.
+        Enables stage-2 fine-tuning with a low backbone lr.
+        """
+        for param in self.clip.parameters():
+            param.requires_grad = False
+        if n <= 0:
+            return
+        for layer in self.clip.vision_model.encoder.layers[-n:]:
+            for param in layer.parameters():
+                param.requires_grad = True
+        for param in self.clip.vision_model.post_layernorm.parameters():
+            param.requires_grad = True
+        for layer in self.clip.text_model.encoder.layers[-n:]:
+            for param in layer.parameters():
+                param.requires_grad = True
+        for param in self.clip.text_model.final_layer_norm.parameters():
+            param.requires_grad = True
+        for param in self.clip.visual_projection.parameters():
+            param.requires_grad = True
+        for param in self.clip.text_projection.parameters():
+            param.requires_grad = True
+        trainable = sum(p.numel() for p in self.clip.parameters() if p.requires_grad)
+        total = sum(p.numel() for p in self.clip.parameters())
+        print(f"CLIP unfreeze last {n} layers: {trainable:,}/{total:,} params trainable ({100*trainable/total:.1f}%)", flush=True)
 
     def forward(self, pixel_values, input_ids, attention_mask):
         outputs = self.clip(
@@ -181,15 +212,27 @@ class ClipFusionClassifier(nn.Module):
 
 
 class FeatureClassifier(nn.Module):
-    def __init__(self, feature_dim: int, num_classes: int, hidden_dim: int, dropout: float):
+    def __init__(self, feature_dim: int, num_classes: int, hidden_dim: int, dropout: float, num_layers: int = 2):
         super().__init__()
-        self.classifier = nn.Sequential(
-            nn.LayerNorm(feature_dim),
-            nn.Linear(feature_dim, hidden_dim),
-            nn.GELU(),
-            nn.Dropout(dropout),
-            nn.Linear(hidden_dim, num_classes),
-        )
+        if num_layers >= 3:
+            self.classifier = nn.Sequential(
+                nn.LayerNorm(feature_dim),
+                nn.Linear(feature_dim, hidden_dim * 2),
+                nn.GELU(),
+                nn.Dropout(dropout),
+                nn.Linear(hidden_dim * 2, hidden_dim),
+                nn.GELU(),
+                nn.Dropout(dropout * 0.5),
+                nn.Linear(hidden_dim, num_classes),
+            )
+        else:
+            self.classifier = nn.Sequential(
+                nn.LayerNorm(feature_dim),
+                nn.Linear(feature_dim, hidden_dim),
+                nn.GELU(),
+                nn.Dropout(dropout),
+                nn.Linear(hidden_dim, num_classes),
+            )
 
     def forward(self, features):
         return self.classifier(features)
@@ -601,6 +644,57 @@ def class_weights_from_labels(labels, num_classes, device):
     return torch.tensor(weights, dtype=torch.float32, device=device)
 
 
+class FocalLoss(nn.Module):
+    """Focal Loss: reduces loss for easy examples, focusing on hard ones.
+
+    Works independently of WeightedRandomSampler so there is no double-penalty
+    on minority classes. Use ``--use-focal-loss`` instead of ``--weighted-loss``
+    when the sampler is already active.
+
+    gamma=0  →  equivalent to standard CrossEntropyLoss
+    gamma=2  →  standard focal loss (Lin et al. 2017)
+    """
+
+    def __init__(self, gamma: float = 2.0, label_smoothing: float = 0.0):
+        super().__init__()
+        self.gamma = gamma
+        self.label_smoothing = label_smoothing
+
+    def forward(self, logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
+        # Use CE with label_smoothing for soft targets, then re-weight by (1-pt)^gamma
+        ce = nn.functional.cross_entropy(
+            logits, targets, reduction="none", label_smoothing=self.label_smoothing
+        )
+        pt = torch.exp(-ce)  # probability of the correct class
+        focal_weight = (1.0 - pt) ** self.gamma
+        return (focal_weight * ce).mean()
+
+
+def build_criterion(args, weights, device):
+    """Return the appropriate loss criterion based on CLI flags.
+
+    Priority: focal > weighted_loss > plain CE
+    Note: combining WeightedRandomSampler with weighted_loss causes a double
+    penalty on minority classes and typically *hurts* overall accuracy.
+    Use --use-focal-loss to address class imbalance without double-counting.
+    """
+    if args.use_focal_loss:
+        print(
+            f"Using FocalLoss (gamma={args.focal_gamma}, "
+            f"label_smoothing={args.label_smoothing})",
+            flush=True,
+        )
+        return FocalLoss(gamma=args.focal_gamma, label_smoothing=args.label_smoothing)
+    if args.weighted_loss:
+        print(
+            "WARNING: --weighted-loss is active together with WeightedRandomSampler. "
+            "This double-penalises minority classes and may hurt accuracy. "
+            "Consider using --use-focal-loss instead.",
+            flush=True,
+        )
+    return nn.CrossEntropyLoss(weight=weights, label_smoothing=args.label_smoothing)
+
+
 def serializable_args(args):
     return {key: str(value) if isinstance(value, Path) else value for key, value in vars(args).items()}
 
@@ -639,14 +733,16 @@ def train_with_embedding_cache(args, output_dir, device):
         num_classes=num_classes,
         hidden_dim=args.hidden_dim,
         dropout=args.dropout,
+        num_layers=args.num_head_layers,
     ).to(device)
+    print(f"Head layers: {args.num_head_layers}, hidden_dim: {args.hidden_dim}", flush=True)
 
     weights = (
         class_weights_from_labels(train_payload["labels"], num_classes, device)
         if args.weighted_loss
         else None
     )
-    criterion = nn.CrossEntropyLoss(weight=weights, label_smoothing=args.label_smoothing)
+    criterion = build_criterion(args, weights, device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
     scaler = torch.amp.GradScaler("cuda", enabled=device.type == "cuda")
@@ -811,19 +907,33 @@ def train(args):
         num_classes=len(train_ds.label_to_idx),
         hidden_dim=args.hidden_dim,
         dropout=args.dropout,
+        num_layers=args.num_head_layers,
     )
+    print(f"Head layers: {args.num_head_layers}, hidden_dim: {args.hidden_dim}", flush=True)
 
     if args.freeze_clip:
         model.freeze_clip()
+    elif args.unfreeze_last_n_layers > 0:
+        model.unfreeze_last_n_layers(args.unfreeze_last_n_layers)
+    else:
+        model.unfreeze_clip()
     model.to(device)
 
     weights = class_weights_from_dataset(train_ds, device) if args.weighted_loss else None
-    criterion = nn.CrossEntropyLoss(weight=weights, label_smoothing=args.label_smoothing)
-    optimizer = torch.optim.AdamW(
-        filter(lambda param: param.requires_grad, model.parameters()),
-        lr=args.lr,
-        weight_decay=args.weight_decay,
-    )
+    criterion = build_criterion(args, weights, device)
+
+    # Differential LR: small lr for CLIP backbone, normal lr for head
+    if not args.freeze_clip and args.clip_lr > 0:
+        clip_params = [p for p in model.clip.parameters() if p.requires_grad]
+        head_params = list(model.classifier.parameters())
+        param_groups = [
+            {"params": clip_params, "lr": args.clip_lr, "weight_decay": args.weight_decay},
+            {"params": head_params, "lr": args.lr, "weight_decay": args.weight_decay},
+        ]
+        print(f"Differential LR: backbone={args.clip_lr}, head={args.lr}", flush=True)
+    else:
+        param_groups = filter(lambda p: p.requires_grad, model.parameters())
+    optimizer = torch.optim.AdamW(param_groups, lr=args.lr, weight_decay=args.weight_decay)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
     scaler = torch.amp.GradScaler("cuda", enabled=device.type == "cuda")
 
@@ -992,6 +1102,38 @@ def parse_args():
     parser.add_argument("--freeze-clip", action="store_true", default=True)
     parser.add_argument("--train-clip", dest="freeze_clip", action="store_false")
     parser.add_argument("--weighted-loss", action="store_true")
+    parser.add_argument(
+        "--num-head-layers",
+        type=int,
+        default=2,
+        choices=[2, 3],
+        help="Classifier head depth: 2=standard MLP, 3=deeper MLP (방안2). Default: 2.",
+    )
+    parser.add_argument(
+        "--unfreeze-last-n-layers",
+        type=int,
+        default=0,
+        help="Unfreeze last N transformer blocks of CLIP for stage-2 fine-tuning (방안3). "
+             "Requires --train-clip. Recommended: 2~4. Default: 0 (fully frozen).",
+    )
+    parser.add_argument(
+        "--clip-lr",
+        type=float,
+        default=1e-5,
+        help="Learning rate for CLIP backbone when fine-tuning (방안3). Default: 1e-5.",
+    )
+    parser.add_argument(
+        "--use-focal-loss",
+        action="store_true",
+        help="Use Focal Loss instead of CrossEntropy. Recommended over --weighted-loss "
+             "when WeightedRandomSampler is active (avoids double-penalty on minority classes).",
+    )
+    parser.add_argument(
+        "--focal-gamma",
+        type=float,
+        default=2.0,
+        help="Gamma exponent for Focal Loss (default: 2.0). Higher = more focus on hard examples.",
+    )
     return parser.parse_args()
 
 

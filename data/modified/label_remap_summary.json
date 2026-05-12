@@ -1,0 +1,803 @@
+{
+  "train": {
+    "source": "E:\\딥러닝실습\\perfume\\data\\All\\train.csv",
+    "output": "E:\\딥러닝실습\\perfume\\data\\modified\\train.csv",
+    "original_counts": {
+      "Amber_Oriental": 1758,
+      "Citrus": 1651,
+      "Floral": 8777,
+      "Fresh": 1694,
+      "Spicy": 408,
+      "Sweet": 703,
+      "Woody": 7566
+    },
+    "mapped_counts": {
+      "Amber": 2734,
+      "Floral": 8856,
+      "Fresh": 3372,
+      "Woody": 7595
+    },
+    "sweet_routes": {
+      "Amber": 568,
+      "Floral": 79,
+      "Fresh": 27,
+      "Woody": 29
+    },
+    "sweet_examples": [
+      {
+        "name": "Intoxicated",
+        "brand": "Kilian",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 3,
+          "Fresh": 0,
+          "Floral": 0,
+          "Woody": 0
+        },
+        "notes": "Caramel, Coffee (Turkish), Cinnamon, Cardamom, Nutmeg"
+      },
+      {
+        "name": "Tea for Two Eau de Toilette",
+        "brand": "L'Artisan Parfumeur",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 3,
+          "Fresh": 1,
+          "Floral": 0,
+          "Woody": 0
+        },
+        "notes": "Ginger, cinnamon, green anise, honey, vanilla"
+      },
+      {
+        "name": "Hypnotic Poison",
+        "brand": "Dior",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 2,
+          "Fresh": 1,
+          "Floral": 2,
+          "Woody": 0
+        },
+        "notes": "Tonka Bean, Jasmine (Sambac), Vanilla, Orange Blossom"
+      },
+      {
+        "name": "Friends World For Her Tropical Sorbet 2020",
+        "brand": "Oriflame",
+        "mapped_label": "Floral",
+        "scores": {
+          "Amber": 0,
+          "Fresh": 2,
+          "Floral": 2,
+          "Woody": 1
+        },
+        "notes": "Cedarwood, Lily Of The Valley, Rose, Lemon, Musk, Rhubarb"
+      },
+      {
+        "name": "Good Girl Supreme",
+        "brand": "Carolina Herrera",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 1,
+          "Fresh": 0,
+          "Floral": 2,
+          "Woody": 1
+        },
+        "notes": "Tonka Bean, Jasmine, Tuberose, Vetiver"
+      },
+      {
+        "name": "Night Bloom",
+        "brand": "Jacomo",
+        "mapped_label": "Floral",
+        "scores": {
+          "Amber": 2,
+          "Fresh": 4,
+          "Floral": 5,
+          "Woody": 1
+        },
+        "notes": "Praline, Patchouli, Peach, Freesia, Iris / Orris, Jasmine, Orange Blossom, Mandarin, Pear, Vanilla, Blackcurrant Bud"
+      },
+      {
+        "name": "Imari Fantasy",
+        "brand": "Avon",
+        "mapped_label": "Woody",
+        "scores": {
+          "Amber": 0,
+          "Fresh": 0,
+          "Floral": 1,
+          "Woody": 2
+        },
+        "notes": "Jasmine (Sambac), Cashmeran (Woody musky)"
+      },
+      {
+        "name": "Fly Me To The Oud",
+        "brand": "Musicology",
+        "mapped_label": "Woody",
+        "scores": {
+          "Amber": 0,
+          "Fresh": 0,
+          "Floral": 0,
+          "Woody": 5
+        },
+        "notes": "Oud / Agarwood, Sandalwood (Australia), Leather, Patchouli, Black Pepper"
+      },
+      {
+        "name": "Les Gourmandises De Nina",
+        "brand": "Nina Ricci",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 1,
+          "Fresh": 1,
+          "Floral": 1,
+          "Woody": 0
+        },
+        "notes": "Gardenia, Passion Fruit, Praline, Mandarin"
+      },
+      {
+        "name": "Fucking Fabulous Travel Atomizer Eau de Parfum",
+        "brand": "TOM FORD Private Blend",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 2,
+          "Fresh": 0,
+          "Floral": 2,
+          "Woody": 2
+        },
+        "notes": "Lavender, clary sage, bitter almond, tonka bean, orris root, leather, cashmeran, amber, white woods Click Here For Ingredients ÃClose Fucking Fabulous Travel Atomizer by TOM FORD Private Blend Ingredients Please be aware that ingredient lists may change or vary from time to time.  Please refer to the ingredient list on the product package you receive for the most up to date list of ingredients."
+      },
+      {
+        "name": "Xo, Victoria",
+        "brand": "Victoria'S Secret",
+        "mapped_label": "Floral",
+        "scores": {
+          "Amber": 1,
+          "Fresh": 3,
+          "Floral": 3,
+          "Woody": 1
+        },
+        "notes": "Rose, Apple, Ivy, Lily, Orchid, Peony, Caramel, Bergamot, Birch, Grapefruit, Musk, Peach, Sandalwood"
+      },
+      {
+        "name": "Spirit Woman Vip",
+        "brand": "Banderas",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 1,
+          "Fresh": 0,
+          "Floral": 1,
+          "Woody": 1
+        },
+        "notes": "Peony, Plum, Vanilla, Citruses, Musk, Sandalwood"
+      },
+      {
+        "name": "Pretty Bliss",
+        "brand": "Nocibé",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 3,
+          "Fresh": 1,
+          "Floral": 4,
+          "Woody": 1
+        },
+        "notes": "Jasmine (Sambac), Caramel, Iris / Orris, Rose, Amber, Bergamot, Musk, Vanilla, Woody Notes"
+      },
+      {
+        "name": "Crème Vanille",
+        "brand": "Le Monde Gourmand",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 1,
+          "Fresh": 0,
+          "Floral": 1,
+          "Woody": 0
+        },
+        "notes": "Apricot, Jasmine, Amber"
+      },
+      {
+        "name": "Manège Rouge",
+        "brand": "Al Haramain",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 2,
+          "Fresh": 0,
+          "Floral": 1,
+          "Woody": 1
+        },
+        "notes": "Amber, Caramel, Jasmine, Cotton Candy, Oakmoss, Saffron"
+      },
+      {
+        "name": "Choc",
+        "brand": "O Boticário",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 3,
+          "Fresh": 2,
+          "Floral": 1,
+          "Woody": 2
+        },
+        "notes": "Amber, Vanilla, Benzoin, Lemon, Musk, Orange Blossom, Peach, Sandalwood, Woody Notes"
+      },
+      {
+        "name": "Someday",
+        "brand": "Justin Bieber",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 1,
+          "Fresh": 2,
+          "Floral": 1,
+          "Woody": 1
+        },
+        "notes": "Orchid, Jasmine (Sambac), Mandarin, Musk, Pear, Sandalwood, Vanilla"
+      },
+      {
+        "name": "Fleur De Figuier Eau De Parfum",
+        "brand": "Roger & Gallet",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 1,
+          "Fresh": 1,
+          "Floral": 1,
+          "Woody": 1
+        },
+        "notes": "Fig, Freesia, Maltol (Praline), Patchouli, Peach, Pear"
+      },
+      {
+        "name": "Cuir Cavalier Eau de Parfum",
+        "brand": "Parfums MDCI",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 3,
+          "Fresh": 0,
+          "Floral": 2,
+          "Woody": 3
+        },
+        "notes": "Italian red tangerine, saffron, rose, iris, cypriol, white honey, oud, soft leather, cedar, tonka bean, vanilla, musks"
+      },
+      {
+        "name": "Grim Fantasia",
+        "brand": "Café De Parfum",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 3,
+          "Fresh": 0,
+          "Floral": 2,
+          "Woody": 3
+        },
+        "notes": "Amber, Cherry, Vetiver, Cocoa, Bay, Cinnamon, Iris / Orris, Leather, Oakmoss"
+      }
+    ]
+  },
+  "val": {
+    "source": "E:\\딥러닝실습\\perfume\\data\\All\\val.csv",
+    "output": "E:\\딥러닝실습\\perfume\\data\\modified\\val.csv",
+    "original_counts": {
+      "Amber_Oriental": 220,
+      "Citrus": 206,
+      "Floral": 1098,
+      "Fresh": 212,
+      "Spicy": 51,
+      "Sweet": 88,
+      "Woody": 945
+    },
+    "mapped_counts": {
+      "Amber": 343,
+      "Floral": 1108,
+      "Fresh": 421,
+      "Woody": 948
+    },
+    "sweet_routes": {
+      "Amber": 72,
+      "Floral": 10,
+      "Fresh": 3,
+      "Woody": 3
+    },
+    "sweet_examples": [
+      {
+        "name": "Bois Martial",
+        "brand": "Givenchy",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 0,
+          "Fresh": 0,
+          "Floral": 0,
+          "Woody": 1
+        },
+        "notes": "Cedarwood, Pineapple, Clary Sage"
+      },
+      {
+        "name": "Do Washi",
+        "brand": "Uermi",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 1,
+          "Fresh": 0,
+          "Floral": 1,
+          "Woody": 2
+        },
+        "notes": "Tonka Bean, Peony, Cashmeran (Woody musky), Musk"
+      },
+      {
+        "name": "Today Tomorrow Always My Everything",
+        "brand": "Avon",
+        "mapped_label": "Floral",
+        "scores": {
+          "Amber": 2,
+          "Fresh": 2,
+          "Floral": 5,
+          "Woody": 1
+        },
+        "notes": "Rose (Bulgaria), Praline, Bergamot, Orange Blossom, Rose (Turkey), Jasmine (Sambac), Rose (Grasse), Amber, Ginger, Raspberry, Sandalwood"
+      },
+      {
+        "name": "Modern Chypre",
+        "brand": "Estéban",
+        "mapped_label": "Fresh",
+        "scores": {
+          "Amber": 1,
+          "Fresh": 3,
+          "Floral": 2,
+          "Woody": 1
+        },
+        "notes": "Patchouli, Rose, Mandarin (green), Praline, Bergamot, Lily Of The Valley, Raspberry"
+      },
+      {
+        "name": "Miss Dior (Miss Dior Chérie) (2011)",
+        "brand": "Dior",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 2,
+          "Fresh": 1,
+          "Floral": 3,
+          "Woody": 1
+        },
+        "notes": "Mandarin, Jasmine, Patchouli, Cherry, Pineapple, Strawberry, Amber, Caramel, Musk, Rose, Violet"
+      },
+      {
+        "name": "Sol Y Sombra",
+        "brand": "Jacques Zolty",
+        "mapped_label": "Floral",
+        "scores": {
+          "Amber": 1,
+          "Fresh": 0,
+          "Floral": 4,
+          "Woody": 1
+        },
+        "notes": "Benzoin, Candy, Tangerine, Musk, Sandalwood, Ylang-ylang, Rose (Turkey), Jasmine (Sambac)"
+      },
+      {
+        "name": "Gala À L'Opéra",
+        "brand": "Korloff",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 3,
+          "Fresh": 0,
+          "Floral": 2,
+          "Woody": 3
+        },
+        "notes": "Cashmeran (Woody musky), Vanilla, Ambrox (Ambergris), Benzoin, Heliotrope, Magnolia, Patchouli, Pink Pepper"
+      },
+      {
+        "name": "Sweet Vanilla Eau de Parfum",
+        "brand": "Montale",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 1,
+          "Fresh": 0,
+          "Floral": 0,
+          "Woody": 0
+        },
+        "notes": "Vanilla, apricot"
+      },
+      {
+        "name": "Not Vanilla",
+        "brand": "Borntostandout",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 4,
+          "Fresh": 1,
+          "Floral": 1,
+          "Woody": 3
+        },
+        "notes": "Vanilla, Praline, Nutmeg, Amber, Bergamot, Cedarwood, Cetalox (Ambergris), Guaiac Wood, Juniper Berries, Musk, Violet"
+      },
+      {
+        "name": "Vaniglia Intensa",
+        "brand": "Marcoccia",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 3,
+          "Fresh": 0,
+          "Floral": 3,
+          "Woody": 0
+        },
+        "notes": "Vanilla, Caramel, Tonka Bean, Iris / Orris, Jasmine, Musk"
+      },
+      {
+        "name": "Sugarful",
+        "brand": "Michel Germain",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 0,
+          "Fresh": 0,
+          "Floral": 1,
+          "Woody": 1
+        },
+        "notes": "Peony, Cotton Candy, Strawberry, Musk, Sandalwood, Tangerine"
+      },
+      {
+        "name": "My Insolence",
+        "brand": "Guerlain",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 2,
+          "Fresh": 0,
+          "Floral": 1,
+          "Woody": 1
+        },
+        "notes": "Patchouli, Raspberry, Jasmine, Tonka Bean, Vanilla"
+      },
+      {
+        "name": "Poison Girl Eau De Toilette",
+        "brand": "Dior",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 2,
+          "Fresh": 1,
+          "Floral": 2,
+          "Woody": 0
+        },
+        "notes": "Rose Centifolia, Bitter Orange, Tonka Bean, Neroli, Rose (Turkey), Vanilla"
+      },
+      {
+        "name": "Vani Choc Eau de Parfum",
+        "brand": "Hilde Soliani",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 1,
+          "Fresh": 1,
+          "Floral": 0,
+          "Woody": 1
+        },
+        "notes": "Citrus accord, vanilla, almond, sandalwood"
+      },
+      {
+        "name": "Sucre Noir Parfum",
+        "brand": "Arte Profumi",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 1,
+          "Fresh": 0,
+          "Floral": 0,
+          "Woody": 0
+        },
+        "notes": "orchid, vanilla pod, sugar cane"
+      },
+      {
+        "name": "Agua De Bambú Secret Mist Edition 2020",
+        "brand": "Adolfo Dominguez",
+        "mapped_label": "Floral",
+        "scores": {
+          "Amber": 1,
+          "Fresh": 2,
+          "Floral": 4,
+          "Woody": 2
+        },
+        "notes": "Oakmoss, Praline, Rose, Patchouli, Bergamot, Iris / Orris, Jasmine, Lime"
+      },
+      {
+        "name": "Sweet Flowers",
+        "brand": "Montale",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 1,
+          "Fresh": 1,
+          "Floral": 2,
+          "Woody": 1
+        },
+        "notes": "Jasmine, Tuberose, Vanilla, Cotton Candy, Bergamot, Patchouli, Peach"
+      },
+      {
+        "name": "Sweet Temptation Coconut",
+        "brand": "Women'Secret",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 0,
+          "Fresh": 0,
+          "Floral": 1,
+          "Woody": 0
+        },
+        "notes": "Lily Of The Valley"
+      },
+      {
+        "name": "Coffee White Flowers",
+        "brand": "Bohoboco",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 5,
+          "Fresh": 0,
+          "Floral": 0,
+          "Woody": 1
+        },
+        "notes": "Coffee, Floral Notes, Rum, Cocoa, Cinnamon, Clove, Leather, Vanilla"
+      },
+      {
+        "name": "Eau de Cuisine Eau de Parfum",
+        "brand": "Hilde Soliani",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 0,
+          "Fresh": 0,
+          "Floral": 0,
+          "Woody": 0
+        },
+        "notes": "ocean, apricot, almond, fresh dairy, aromatic herbs, spices"
+      }
+    ]
+  },
+  "test": {
+    "source": "E:\\딥러닝실습\\perfume\\data\\All\\test.csv",
+    "output": "E:\\딥러닝실습\\perfume\\data\\modified\\test.csv",
+    "original_counts": {
+      "Amber_Oriental": 220,
+      "Citrus": 207,
+      "Floral": 1097,
+      "Fresh": 212,
+      "Spicy": 51,
+      "Sweet": 87,
+      "Woody": 946
+    },
+    "mapped_counts": {
+      "Amber": 343,
+      "Floral": 1106,
+      "Fresh": 421,
+      "Woody": 950
+    },
+    "sweet_routes": {
+      "Amber": 72,
+      "Floral": 9,
+      "Fresh": 2,
+      "Woody": 4
+    },
+    "sweet_examples": [
+      {
+        "name": "Jazzy Twist",
+        "brand": "Valmont",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 0,
+          "Fresh": 0,
+          "Floral": 1,
+          "Woody": 0
+        },
+        "notes": "Magnolia, Black Pepper"
+      },
+      {
+        "name": "Flavia Vanilla Eau de Parfum",
+        "brand": "Parle Moi de Parfum",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 1,
+          "Fresh": 0,
+          "Floral": 2,
+          "Woody": 0
+        },
+        "notes": "Ylang ylang, michelia, vanilla, sugar"
+      },
+      {
+        "name": "Louve",
+        "brand": "Serge Lutens",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 2,
+          "Fresh": 0,
+          "Floral": 3,
+          "Woody": 0
+        },
+        "notes": "White Sugared Almond, Iris / Orris, Amber, Vanilla, Rose"
+      },
+      {
+        "name": "Gold Knight Eau de Parfum",
+        "brand": "By Kilian",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 3,
+          "Fresh": 1,
+          "Floral": 0,
+          "Woody": 1
+        },
+        "notes": "Bergamot, anise, patchouli, vanilla, cinnamon and honey"
+      },
+      {
+        "name": "La Nuit Trésor L'Eau De Parfum Sparkly Edition '19",
+        "brand": "Lancôme",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 2,
+          "Fresh": 2,
+          "Floral": 1,
+          "Woody": 1
+        },
+        "notes": "Patchouli, Praline, Rose, Bergamot, Lychee, Passion Fruit, Pear, Strawberry, Tangerine, Vanilla"
+      },
+      {
+        "name": "Diamant",
+        "brand": "Fragonard",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 1,
+          "Fresh": 1,
+          "Floral": 2,
+          "Woody": 1
+        },
+        "notes": "Jasmine, Musk, Caramel, Mandarin, Patchouli, Plum, Rose"
+      },
+      {
+        "name": "Ambre For Her",
+        "brand": "Avon",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 3,
+          "Fresh": 1,
+          "Floral": 3,
+          "Woody": 1
+        },
+        "notes": "Amber, Jasmine, Patchouli, Caramel, Benzoin, Gardenia, Lychee, Mandarin, Rose Centifolia"
+      },
+      {
+        "name": "Phloem Eau de Parfum",
+        "brand": "Jorum Studio",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 1,
+          "Fresh": 1,
+          "Floral": 0,
+          "Woody": 0
+        },
+        "notes": "Passion Fruit, Rhubarb, Mulberry, Nasturtium, Honeysuckle, Blaeberry, Camellia, Oysterplant, Meadowsweet, Gorse, Ambrette, Sesame, Amyris, Tonka Bean Absolute"
+      },
+      {
+        "name": "Lolita Lempicka Eau De Parfum Original",
+        "brand": "Lolita Lempicka",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 3,
+          "Fresh": 1,
+          "Floral": 2,
+          "Woody": 1
+        },
+        "notes": "Vanilla, Anise, Iris / Orris, Praline, Tonka Bean, Bergamot, Musk, Patchouli"
+      },
+      {
+        "name": "Miss Dior Eau De Parfum (2017)",
+        "brand": "Dior",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 1,
+          "Fresh": 2,
+          "Floral": 2,
+          "Woody": 1
+        },
+        "notes": "Rose, Bergamot, Patchouli, Caramel, Pink Pepper, Mandarin, Rose (Turkey), Palisander Rosewood"
+      },
+      {
+        "name": "Bloom Café",
+        "brand": "Rephase",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 5,
+          "Fresh": 3,
+          "Floral": 2,
+          "Woody": 3
+        },
+        "notes": "Coffee, Amber, Vanilla, Apricot, Bergamot, Grapefruit, Lime, Ambergris, Cinnamon, Guaiac Wood, Jasmine, Musk, Patchouli, Rose"
+      },
+      {
+        "name": "Poison Girl",
+        "brand": "Dior",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 2,
+          "Fresh": 1,
+          "Floral": 2,
+          "Woody": 1
+        },
+        "notes": "Rose Centifolia, Bitter Orange, Tonka Bean, Rose (Turkey), Vanilla, Sandalwood"
+      },
+      {
+        "name": "Poudre de Riz Eau de Parfum",
+        "brand": "Pierre Guillaume Paris Black Collection",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 4,
+          "Fresh": 0,
+          "Floral": 2,
+          "Woody": 2
+        },
+        "notes": "Damask rose, tiare absolute, coconut, vanilla, rice powder accord (caramelic, burnt toast and maple notes), sandalwood, iris, cedar, tonka bean, Tolu balsam and benzoin resin"
+      },
+      {
+        "name": "Daisy Eau So Fresh Petals",
+        "brand": "Marc Jacobs",
+        "mapped_label": "Floral",
+        "scores": {
+          "Amber": 0,
+          "Fresh": 2,
+          "Floral": 2,
+          "Woody": 1
+        },
+        "notes": "Grapefruit, Musk, Jasmine, Violet, Ivy, Lychee, Pear, Plum, Raspberry, Cedarwood (Virginia)"
+      },
+      {
+        "name": "Anni",
+        "brand": "O Boticário",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 2,
+          "Fresh": 2,
+          "Floral": 3,
+          "Woody": 1
+        },
+        "notes": "Lily Of The Valley, Sandalwood, Jasmine, Rose, Amber, Bergamot, Mandarin, Musk, Vanilla"
+      },
+      {
+        "name": "1270 Eau de Parfum",
+        "brand": "Frapin",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 4,
+          "Fresh": 1,
+          "Floral": 0,
+          "Woody": 1
+        },
+        "notes": "exotic woods, spice, raisin, vine flowers, pepper, candied orange, nut, hazelnut, prune, cocoa, coffee, leather, woods, white honey, vanilla"
+      },
+      {
+        "name": "Gold Myrrh Absolute",
+        "brand": "Carolina Herrera",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 3,
+          "Fresh": 0,
+          "Floral": 0,
+          "Woody": 0
+        },
+        "notes": "Myrrh, Everlasting Flower, Cocoa, Vanilla, Black Pepper"
+      },
+      {
+        "name": "Dna For Women 2024",
+        "brand": "Balr.",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 3,
+          "Fresh": 1,
+          "Floral": 3,
+          "Woody": 2
+        },
+        "notes": "Jasmine, Lily Of The Valley, Caramel, Rose, Amber, Bergamot, Cedarwood, Musk, Sandalwood, Vanilla"
+      },
+      {
+        "name": "Rose Magnetic Eau de Parfum",
+        "brand": "Essential Parfums",
+        "mapped_label": "Amber",
+        "scores": {
+          "Amber": 2,
+          "Fresh": 1,
+          "Floral": 2,
+          "Woody": 1
+        },
+        "notes": "Grapefruit, peppermint, Turkish rose absolute, rose extract, lychee, cedar, vanilla, tonka"
+      },
+      {
+        "name": "Secret Attitude Crush !",
+        "brand": "Avon",
+        "mapped_label": "Woody",
+        "scores": {
+          "Amber": 0,
+          "Fresh": 0,
+          "Floral": 1,
+          "Woody": 2
+        },
+        "notes": "Raspberry, Lily Of The Valley, Apricot, Cedarwood, Sandalwood"
+      }
+    ]
+  }
+}
