@@ -279,7 +279,7 @@ def run_stage1(
         "val_f1":     [],
     }
 
-    best_macro_f1 = float("-inf")
+    best_val_acc = 0.0
     os.makedirs(cfg.path.checkpoint_dir, exist_ok=True)
 
     for epoch in range(1, tc.stage1_epochs + 1):
@@ -298,14 +298,14 @@ def run_stage1(
               f"train_loss={tr_loss:.4f} acc={tr_acc:.4f} | "
               f"val_loss={vl_loss:.4f} acc={vl_acc:.4f} f1={vl_f1:.4f}")
 
-        if vl_f1 > best_macro_f1:
-            best_macro_f1 = vl_f1
+        if vl_acc > best_val_acc:
+            best_val_acc = vl_acc
             save_checkpoint(
-                model, optimizer, epoch, vl_f1,
+                model, optimizer, epoch, vl_acc,
                 save_path=os.path.join(cfg.path.checkpoint_dir, "stage1_best.pth"),
-                extra={"stage": 1, "macro_f1": vl_f1},
+                extra={"stage": 1, "val_acc": vl_acc},
             )
-            print(f"  [Checkpoint] 저장: epoch={epoch}, macro_f1={vl_f1:.4f}")
+            print(f"  [Checkpoint] 저장: epoch={epoch}, val_acc={vl_acc:.4f}")
 
     return history
 
@@ -344,7 +344,7 @@ def run_stage2(
         "val_f1":     [],
     }
 
-    best_macro_f1 = float("-inf")
+    best_val_acc = 0.0
     # 점진적 Unfreeze 스케줄: epoch 6, 11 에 블록 추가 해제
     unfreeze_schedule = {6: 5, 11: 9}   # epoch → 누적 블록 수
 
@@ -379,16 +379,16 @@ def run_stage2(
               f"val_loss={vl_loss:.4f} acc={vl_acc:.4f} f1={vl_f1:.4f} | "
               f"lr={current_lr:.6f}")
 
-        if vl_f1 > best_macro_f1:
-            best_macro_f1 = vl_f1
+        if vl_acc > best_val_acc:
+            best_val_acc = vl_acc
             save_checkpoint(
-                model, optimizer, epoch, vl_f1,
+                model, optimizer, epoch, vl_acc,
                 save_path=os.path.join(cfg.path.checkpoint_dir, "stage2_best.pth"),
-                extra={"stage": 2, "macro_f1": vl_f1},
+                extra={"stage": 2, "val_acc": vl_acc},
             )
-            print(f"  [Checkpoint] 저장: epoch={epoch}, macro_f1={vl_f1:.4f}")
+            print(f"  [Checkpoint] 저장: epoch={epoch}, val_acc={vl_acc:.4f}")
 
-        if early_stop(vl_f1):
+        if early_stop(vl_acc):
             print(f"[Stage 2] Early Stopping at epoch {epoch}")
             break
 
@@ -405,12 +405,7 @@ def run_training():
     set_seed(tc.seed)
     device = get_device()
 
-    # train_aug.csv 있으면 증강본, 없으면 원본 사용
-    train_csv = (
-        cfg.path.train_aug_csv
-        if os.path.exists(cfg.path.train_aug_csv)
-        else cfg.path.train_csv
-    )
+    train_csv = cfg.path.train_csv
     print(f"[Train] 사용 CSV: {os.path.basename(train_csv)}")
 
     # DataLoader

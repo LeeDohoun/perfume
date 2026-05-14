@@ -39,15 +39,14 @@ def parse_args():
         "--mode",
         type=str,
         default="train_eval",
-        choices=["full", "resplit", "augment", "train", "eval", "train_eval"],
+        choices=["full", "resplit", "train", "eval", "train_eval"],
         help=(
             "실행 모드 (기본값: train_eval)\n"
-            "  full       : resplit → augment → train → eval\n"
+            "  full       : resplit → train → eval\n"
             "  resplit    : 데이터 재분할만\n"
-            "  augment    : 증강만 (train_aug.csv 생성)\n"
-            "  train      : 학습 (train_aug.csv 없으면 augment 자동 실행)\n"
+            "  train      : 학습만\n"
             "  eval       : 평가만\n"
-            "  train_eval : 학습 + 평가 (train_aug.csv 없으면 augment 자동 실행)"
+            "  train_eval : 학습 + 평가"
         ),
     )
     parser.add_argument(
@@ -140,18 +139,6 @@ def _run_resplit(args):
     run_resplit(train_ratio=args.train, seed=seed)
 
 
-def _run_augment():
-    from augment_offline import run_offline_augmentation
-    run_offline_augmentation()
-
-
-def _ensure_augmented():
-    """train_aug.csv 없으면 자동으로 augment 실행."""
-    if not os.path.exists(cfg.path.train_aug_csv):
-        print("[Auto] train_aug.csv 없음 → augment 자동 실행")
-        _run_augment()
-
-
 def _run_train():
     from train import run_training
     run_training()
@@ -173,24 +160,17 @@ def main():
     ensure_directories()
 
     if args.mode == "full":
-        # resplit → augment → train → eval
         _run_resplit(args)
-        _run_augment()
         _run_train()
         _run_eval(args)
 
     elif args.mode == "resplit":
         _run_resplit(args)
 
-    elif args.mode == "augment":
-        _run_augment()
-
     elif args.mode == "train":
-        _ensure_augmented()
         _run_train()
 
     elif args.mode == "train_eval":
-        _ensure_augmented()
         _run_train()
         _run_eval(args)
 

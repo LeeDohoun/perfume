@@ -4,7 +4,7 @@ scraper.py
 luckyscent.com 향수 데이터 추가 수집기.
 
 sitemap에서 전체 제품 URL을 가져와 이름/브랜드/노트/설명/이미지를 수집합니다.
-노트 키워드 기반으로 7개 클래스 라벨을 자동 분류합니다.
+노트 키워드 기반으로 4개 클래스 라벨을 자동 분류합니다.
 
 사용법
 ------
@@ -52,35 +52,29 @@ LABEL_KEYWORDS = {
         "rose", "jasmine", "lily", "violet", "iris", "peony", "magnolia",
         "tuberose", "gardenia", "ylang", "geranium", "neroli", "orange blossom",
         "mimosa", "narcissus", "cherry blossom", "heliotrope", "freesia",
+        "caramel", "chocolate", "honey", "praline", "sugar", "candy",
+        "marshmallow", "coconut", "almond", "hazelnut", "butterscotch",
+        "toffee", "cream", "milk", "gourmand",
     ],
     "Woody": [
         "cedar", "sandalwood", "vetiver", "oakmoss", "patchouli", "agarwood",
         "birch", "pine", "fir", "guaiac", "teak", "bamboo", "driftwood",
         "woody", "wood",
-    ],
-    "Amber_Oriental": [
-        "amber", "vanilla", "benzoin", "labdanum", "tonka", "incense",
-        "frankincense", "myrrh", "opoponax", "resin", "balsam", "copal",
-        "castoreum", "musk", "oud",
-    ],
-    "Citrus": [
-        "bergamot", "lemon", "orange", "grapefruit", "lime", "mandarin",
-        "yuzu", "tangerine", "kumquat", "pomelo", "petitgrain", "citrus",
-    ],
-    "Sweet": [
-        "caramel", "chocolate", "honey", "praline", "sugar", "candy",
-        "marshmallow", "coconut", "almond", "hazelnut", "butterscotch",
-        "toffee", "cream", "milk", "gourmand",
-    ],
-    "Spicy": [
         "pepper", "cinnamon", "cardamom", "clove", "nutmeg", "cumin",
         "ginger", "saffron", "chili", "paprika", "turmeric", "caraway",
         "coriander", "anise", "star anise",
     ],
+    "Amber": [
+        "amber", "vanilla", "benzoin", "labdanum", "tonka", "incense",
+        "frankincense", "myrrh", "opoponax", "resin", "balsam", "copal",
+        "castoreum", "musk", "oud",
+    ],
     "Fresh": [
         "aquatic", "marine", "oceanic", "cucumber", "watermelon", "melon",
         "ozonic", "mint", "spearmint", "grass", "hay", "green", "herbal",
-        "fig leaf", "tomato leaf", "basil",
+        "fig leaf", "tomato leaf", "basil", "lavender", "fougere",
+        "bergamot", "lemon", "orange", "grapefruit", "lime", "mandarin",
+        "yuzu", "tangerine", "kumquat", "pomelo", "petitgrain", "citrus",
     ],
 }
 

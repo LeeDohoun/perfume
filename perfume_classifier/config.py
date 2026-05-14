@@ -38,9 +38,9 @@ class PathConfig:
 # ──────────────────────────────────────────────
 @dataclass
 class ClassConfig:
-    # Note 분류 클래스 (7개)
+    # Note 분류 클래스 (4개)
     note_classes: List[str] = field(default_factory=lambda: [
-        "Floral", "Woody", "Amber_Oriental", "Citrus", "Sweet", "Spicy", "Fresh"
+        "Floral", "Woody", "Amber", "Fresh"
     ])
 
     # Brand 분류 태스크를 추가하려면 True로 변경

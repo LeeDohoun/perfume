@@ -62,54 +62,56 @@ LABEL_KEYWORDS = {
         "rose", "jasmine", "lily", "violet", "iris", "peony", "magnolia",
         "tuberose", "gardenia", "ylang", "geranium", "neroli", "orange blossom",
         "mimosa", "narcissus", "cherry blossom", "heliotrope", "freesia",
+        "caramel", "chocolate", "honey", "praline", "sugar", "candy",
+        "marshmallow", "coconut", "almond", "hazelnut", "butterscotch",
+        "toffee", "cream", "milk", "gourmand",
     ],
     "Woody": [
         "cedar", "sandalwood", "vetiver", "oakmoss", "patchouli", "agarwood",
         "birch", "pine", "fir", "guaiac", "teak", "bamboo", "driftwood",
         "woody", "wood",
-    ],
-    "Amber_Oriental": [
-        "amber", "vanilla", "benzoin", "labdanum", "tonka", "incense",
-        "frankincense", "myrrh", "opoponax", "resin", "balsam", "copal",
-        "castoreum", "musk", "oud",
-    ],
-    "Citrus": [
-        "bergamot", "lemon", "orange", "grapefruit", "lime", "mandarin",
-        "yuzu", "tangerine", "kumquat", "pomelo", "petitgrain", "citrus",
-    ],
-    "Sweet": [
-        "caramel", "chocolate", "honey", "praline", "sugar", "candy",
-        "marshmallow", "coconut", "almond", "hazelnut", "butterscotch",
-        "toffee", "cream", "milk", "gourmand",
-    ],
-    "Spicy": [
         "pepper", "cinnamon", "cardamom", "clove", "nutmeg", "cumin",
         "ginger", "saffron", "chili", "paprika", "turmeric", "caraway",
         "coriander", "anise", "star anise",
+    ],
+    "Amber": [
+        "amber", "vanilla", "benzoin", "labdanum", "tonka", "incense",
+        "frankincense", "myrrh", "opoponax", "resin", "balsam", "copal",
+        "castoreum", "musk", "oud",
     ],
     "Fresh": [
         "aquatic", "marine", "oceanic", "cucumber", "watermelon", "melon",
         "ozonic", "mint", "spearmint", "grass", "hay", "green", "herbal",
         "fig leaf", "tomato leaf", "basil", "lavender", "fougere",
+        "bergamot", "lemon", "orange", "grapefruit", "lime", "mandarin",
+        "yuzu", "tangerine", "kumquat", "pomelo", "petitgrain", "citrus",
     ],
 }
 
-# family → label (1순위: family가 명확하면 무조건 사용)
+# family → label (1순위)
 FAMILY_PRIMARY = {
     "FLORAL":           "Floral",
     "WOODY":            "Woody",
-    "AMBERY":           "Amber_Oriental",
-    "ORIENTAL":         "Amber_Oriental",
-    "CITRUS":           "Citrus",
+    "AMBERY":           "Amber",
+    "ORIENTAL":         "Amber",
+    "CITRUS":           "Fresh",
     "AROMATIC FOUGERE": "Fresh",
     "CHYPRE":           "Woody",
     "LEATHER":          "Woody",
 }
 
-# subfamily → label (2순위: family가 불명확할 때만. Sweet/Spicy 구제용)
+# subfamily → label (2순위)
 SUBFAMILY_RESCUE = {
-    "GOURMAND": "Sweet",   # 716개
-    "SPICY":    "Spicy",   # 427개
+    "GOURMAND": "Floral",  # Sweet → Floral
+    "SPICY":    "Woody",   # Spicy → Woody
+}
+
+# 기존 7클래스 → 4클래스 리매핑 (luckyscent 기존 데이터용)
+LABEL_MAP_4 = {
+    "Floral": "Floral", "Sweet": "Floral",
+    "Woody": "Woody",   "Spicy": "Woody",
+    "Fresh": "Fresh",   "Citrus": "Fresh",
+    "Amber_Oriental": "Amber", "Amber": "Amber",
 }
 
 
@@ -144,8 +146,8 @@ def classify_label(notes: str, family: str = "", subfamily: str = "") -> str:
         return best
 
     # 4순위: subfamily 추가 fallback
-    fallback = {"AMBER": "Amber_Oriental", "FRESH": "Fresh",
-                "AQUATIC": "Fresh", "GREEN": "Fresh", "MUSK": "Amber_Oriental"}
+    fallback = {"AMBER": "Amber", "FRESH": "Fresh",
+                "AQUATIC": "Fresh", "GREEN": "Fresh", "MUSK": "Amber"}
     for key, label in fallback.items():
         if key in family_up or key in subfamily_up:
             return label
@@ -252,6 +254,8 @@ def merge_with_all_cleaned(new_df: pd.DataFrame):
     buf = io.StringIO()
     if ALL_CSV.exists():
         old_df = pd.read_csv(ALL_CSV, encoding="utf-8-sig")
+        # 기존 luckyscent 데이터의 7클래스 라벨 → 4클래스로 리매핑
+        old_df["label"] = old_df["label"].map(LABEL_MAP_4).fillna(old_df["label"])
         existing_keys = set(
             zip(old_df["name"].str.strip().str.lower(),
                 old_df["brand"].str.strip().str.lower())
