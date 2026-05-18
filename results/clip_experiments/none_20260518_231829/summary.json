@@ -1,0 +1,8 @@
+{
+  "text_mode": "none",
+  "clip_model": "openai/clip-vit-base-patch32",
+  "best_epoch": 2,
+  "best_val_acc": 0.34893617021276596,
+  "test_acc": 0.34609929078014184,
+  "test_top3_acc": 0.8446808510638298
+}

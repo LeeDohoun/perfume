@@ -26,3 +26,10 @@ env/
 # OS
 .DS_Store
 Thumbs.db
+
+# 프로젝트
+perfume_images/augmented/
+.matplotlib_cache/
+results/clip_embedding_cache/
+results/clip_experiments/**/best_model.pt
+overnight_resnet18.log
