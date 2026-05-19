@@ -1,0 +1,31 @@
+# Claude Code / OMC
+.claude/
+.omc/
+
+# 가상환경
+venv/
+
+# 학습된 모델 가중치
+*.pth
+*.pt
+checkpoints/
+.torch_cache/
+.hf_cache/
+.matplotlib_cache/
+results/**/features/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+.venv-mps/
+venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,22 @@
+Model        : CLIP ViT-B-32-quickgelu (openai) two-stage fine-tune
+Data         : data/All
+Train split  : train_aug
+Notes used   : False
+Accuracy     : 0.4404
+Macro F1     : 0.2894
+Top-3 Accuracy: 0.8160
+Random Baseline: 0.1429
+
+                precision    recall  f1-score   support
+
+        Floral     0.6734    0.5169    0.5848      1097
+         Woody     0.4774    0.5127    0.4944       946
+Amber_Oriental     0.1327    0.1182    0.1250       220
+        Citrus     0.2629    0.3188    0.2882       207
+         Sweet     0.1013    0.1839    0.1306        87
+         Spicy     0.0652    0.1176    0.0839        51
+         Fresh     0.2868    0.3585    0.3187       212
+
+      accuracy                         0.4404      2820
+     macro avg     0.2857    0.3038    0.2894      2820
+  weighted avg     0.4776    0.4404    0.4538      2820

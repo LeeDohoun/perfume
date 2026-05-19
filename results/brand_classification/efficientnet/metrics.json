@@ -1,0 +1,7 @@
+{
+  "accuracy": 0.9512195121951219,
+  "macro_f1": 0.93,
+  "num_brands": 35,
+  "test_samples": 82,
+  "random_baseline": 0.02857142857142857
+}
