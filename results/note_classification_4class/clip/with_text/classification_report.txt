@@ -1,0 +1,18 @@
+Model        : CLIP ViT-B-32-quickgelu (openai) + text two-stage fine-tune
+brand+name   : True
+notes_used   : False
+Accuracy     : 0.4730
+Macro F1     : 0.4359
+Top-3 Acc    : 0.9252
+Random Base  : 0.2500
+
+              precision    recall  f1-score   support
+
+      Floral     0.7610    0.5131    0.6129      1185
+       Woody     0.6055    0.3109    0.4109       997
+       Fresh     0.3295    0.7536    0.4585       418
+       Amber     0.1826    0.4591    0.2613       220
+
+    accuracy                         0.4730      2820
+   macro avg     0.4696    0.5092    0.4359      2820
+weighted avg     0.5969    0.4730    0.4912      2820

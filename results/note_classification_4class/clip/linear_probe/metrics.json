@@ -1,0 +1,12 @@
+{
+  "model": "CLIP ViT-B-32-quickgelu (openai)",
+  "mode": "linear_probe",
+  "split": "test",
+  "data_dir": "data/All",
+  "train_split": "train",
+  "best_alpha": 3.0,
+  "accuracy": 0.43865248226950354,
+  "macro_f1": 0.39429648333291445,
+  "top3_accuracy": 0.8851063829787233,
+  "random_baseline": 0.25
+}

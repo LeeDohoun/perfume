@@ -1,0 +1,12 @@
+{
+  "model": "CLIP ViT-B-32-quickgelu (openai) two-stage fine-tune",
+  "accuracy": 0.29716312056737587,
+  "macro_f1": 0.294549097532507,
+  "top3_accuracy": 0.8673758865248227,
+  "random_baseline": 0.25,
+  "stage1_epochs": 5,
+  "stage2_epochs": 3,
+  "best_val_macro_f1": null,
+  "unfreeze_last_blocks": 1,
+  "notes_used": false
+}

@@ -1,0 +1,9 @@
+{
+  "model": "CLIP ViT-B-32-quickgelu (openai) + text two-stage fine-tune",
+  "accuracy": 0.47304964539007094,
+  "macro_f1": 0.43590154212927074,
+  "top3_accuracy": 0.925177304964539,
+  "random_baseline": 0.25,
+  "notes_used": false,
+  "brand_name_used": true
+}
