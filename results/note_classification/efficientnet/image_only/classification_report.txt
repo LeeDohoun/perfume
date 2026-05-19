@@ -1,0 +1,20 @@
+Model        : EfficientNet-B0 image only (two-stage fine-tune)
+brand+name   : False
+Accuracy     : 0.4592
+Macro F1     : 0.2243
+Top-3 Acc    : 0.8223
+Random Base  : 0.1429
+
+                precision    recall  f1-score   support
+
+        Floral       0.56      0.61      0.58      1097
+         Woody       0.44      0.60      0.51       946
+Amber_Oriental       0.24      0.03      0.05       220
+        Citrus       0.20      0.12      0.15       207
+         Sweet       0.06      0.06      0.06        87
+         Spicy       0.05      0.02      0.03        51
+         Fresh       0.30      0.15      0.20       212
+
+      accuracy                           0.46      2820
+     macro avg       0.26      0.22      0.22      2820
+  weighted avg       0.42      0.46      0.43      2820

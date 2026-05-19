@@ -12,8 +12,7 @@ checkpoints/
 .torch_cache/
 .hf_cache/
 .matplotlib_cache/
-results/clip_linear_probe/features/
-results/clip_finetune/features/
+results/**/features/
 
 # Python
 __pycache__/
@@ -23,7 +22,6 @@ __pycache__/
 .venv-mps/
 venv/
 env/
-results/clip_finetune_mps/features/
 
 # Jupyter
 .ipynb_checkpoints/

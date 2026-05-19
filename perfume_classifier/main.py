@@ -88,6 +88,11 @@ def parse_args():
         default=0.8,
         help="resplit / full 모드: train 비율 (기본 0.8)",
     )
+    parser.add_argument(
+        "--no_text",
+        action="store_true",
+        help="텍스트 입력 비활성화 (이미지만 사용). 체크포인트/결과 경로 자동 분리.",
+    )
 
     return parser.parse_args()
 
@@ -102,6 +107,13 @@ def apply_cli_overrides(args):
     if args.seed:
         cfg.train.seed = args.seed
         print(f"[Config] seed → {args.seed}")
+    if args.no_text:
+        cfg.text.use_text = False
+        cfg.path.checkpoint_dir = cfg.path.checkpoint_dir + "_image_only"
+        cfg.path.result_dir = os.path.join(cfg.path.result_dir, "efficientnet_image_only")
+        print("[Config] use_text → False (이미지 전용 모드)")
+        print(f"[Config] checkpoint_dir → {cfg.path.checkpoint_dir}")
+        print(f"[Config] result_dir    → {cfg.path.result_dir}")
 
 
 def print_config_summary():

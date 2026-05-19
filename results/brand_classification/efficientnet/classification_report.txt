@@ -1,0 +1,47 @@
+Model        : EfficientNet-B0 brand classification (35 frequent brands)
+Brands       : 35
+Test samples : 82
+Accuracy     : 0.9512
+Random Base  : 0.0286
+
+                                             precision    recall  f1-score   support
+
+                                    Amouage       0.75      1.00      0.86         3
+                            April Aromatics       0.50      1.00      0.67         1
+                                     BYREDO       1.00      1.00      1.00         4
+                                 Bortnikoff       1.00      1.00      1.00         2
+                                  By Kilian       1.00      1.00      1.00         2
+                          Comme des Garcons       0.00      0.00      0.00         2
+                             D.S. and Durga       1.00      1.00      1.00         2
+                                   Diptyque       1.00      1.00      1.00         3
+                        Etat Libre d'Orange       1.00      1.00      1.00         1
+                                  Ex Nihilo       1.00      0.50      0.67         2
+                          Fragrance du Bois       1.00      1.00      1.00         3
+                                     HEELEY       1.00      1.00      1.00         1
+                              Hilde Soliani       1.00      1.00      1.00         1
+                                    J-Scent       1.00      1.00      1.00         2
+                        L'Artisan Parfumeur       1.00      1.00      1.00         4
+                                    Le Labo       1.00      1.00      1.00         3
+                                       MEMO       1.00      1.00      1.00         1
+                   Maison Francis Kurkdjian       1.00      1.00      1.00         3
+                                    Mancera       1.00      1.00      1.00         2
+                                    Montale       1.00      1.00      1.00         4
+                                    Nishane       1.00      1.00      1.00         2
+                              Ormonde Jayne       1.00      1.00      1.00         2
+                         PARFUMS DE NICOLAI       1.00      0.67      0.80         3
+                               Parfums MDCI       1.00      1.00      1.00         2
+                           Parfums de Marly       0.67      1.00      0.80         2
+                                Penhaligons       1.00      1.00      1.00         3
+                         Perris Monte Carlo       1.00      1.00      1.00         1
+Pierre Guillaume Paris, Parfumerie Generale       1.00      1.00      1.00         3
+                                   Profumum       1.00      1.00      1.00         3
+                               Serge Lutens       1.00      1.00      1.00         4
+                       Strangers Parfumerie       1.00      1.00      1.00         1
+                     TOM FORD Private Blend       1.00      1.00      1.00         4
+                             Tauer Perfumes       1.00      1.00      1.00         1
+                                    Xerjoff       0.75      1.00      0.86         3
+                                  Zoologist       1.00      1.00      1.00         2
+
+                                   accuracy                           0.95        82
+                                  macro avg       0.93      0.95      0.93        82
+                               weighted avg       0.94      0.95      0.94        82
