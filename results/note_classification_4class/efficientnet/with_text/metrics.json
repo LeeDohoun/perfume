@@ -1,0 +1,8 @@
+{
+  "model": "EfficientNet-B0 + text (4-class)",
+  "accuracy": 0.5177,
+  "macro_f1": 0.4593,
+  "top3_accuracy": 0.9355,
+  "random_baseline": 0.25,
+  "num_classes": 4
+}
